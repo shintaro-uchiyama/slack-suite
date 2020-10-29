@@ -1,17 +1,21 @@
 package presentation
 
 import (
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	"errors"
-	"github.com/slack-go/slack"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/slack-go/slack/slackevents"
 	"io"
 	"io/ioutil"
 	"net/http"
+
+	"cloud.google.com/go/pubsub"
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"github.com/sirupsen/logrus"
+	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
+	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,8 +27,8 @@ func NewEventHandler() *EventHandler {
 }
 
 type EventCreateRequest struct {
-	Type string `json:"type"`
-	Token string `json:"token"`
+	Type      string `json:"type"`
+	Token     string `json:"token"`
 	Challenge string `json:"challenge"`
 }
 
@@ -52,20 +56,19 @@ func (h EventHandler) Create(c *gin.Context) {
 		return
 	}
 
-
 	verifier, err := slack.NewSecretsVerifier(c.Request.Header, string(result.Payload.Data))
 	if err != nil {
-		jsonError(c, http.StatusInternalServerError, fmt.Errorf("slack signing secret error: %w",err))
+		jsonError(c, http.StatusInternalServerError, fmt.Errorf("slack signing secret error: %w", err))
 		return
 	}
 	bodyReader := io.TeeReader(c.Request.Body, &verifier)
 	body, err := ioutil.ReadAll(bodyReader)
 	if err != nil {
-		jsonError(c, http.StatusInternalServerError, fmt.Errorf("read body error: %w",err))
+		jsonError(c, http.StatusInternalServerError, fmt.Errorf("read body error: %w", err))
 		return
 	}
 	if err := verifier.Ensure(); err != nil {
-		jsonError(c, http.StatusInternalServerError, fmt.Errorf("ensure secret error: %w",err))
+		jsonError(c, http.StatusInternalServerError, fmt.Errorf("ensure secret error: %w", err))
 		return
 	}
 
@@ -74,6 +77,7 @@ func (h EventHandler) Create(c *gin.Context) {
 		jsonError(c, http.StatusInternalServerError, fmt.Errorf("initialize eventsAPIEvent error: %w", e))
 		return
 	}
+	logrus.Info(fmt.Sprintf("eventsAPIEvent %+v", eventsAPIEvent))
 
 	if eventsAPIEvent.Type == slackevents.URLVerification {
 		var r *slackevents.ChallengeResponse
@@ -92,8 +96,8 @@ func (h EventHandler) Create(c *gin.Context) {
 			conversationHistory, err := api.GetConversationHistory(&slack.GetConversationHistoryParameters{
 				ChannelID: ev.Item.Channel,
 				Inclusive: true,
-				Latest: ev.Item.Timestamp,
-				Limit: 1,
+				Latest:    ev.Item.Timestamp,
+				Limit:     1,
 			})
 			if err != nil {
 				jsonError(c, http.StatusInternalServerError, fmt.Errorf("fetch conversation history error: %w", err))
@@ -103,6 +107,32 @@ func (h EventHandler) Create(c *gin.Context) {
 			for _, message := range conversationHistory.Messages {
 				logrus.Info(fmt.Sprintf("fetch message zero %+v", message.Text))
 			}
+
+			buf := bytes.NewBuffer(nil)
+			_ = gob.NewEncoder(buf).Encode(&ev)
+			logrus.Info(fmt.Sprintf("ev: %+v", ev))
+
+			bmsg, err := json.Marshal(ev)
+			if err != nil {
+				jsonError(c, http.StatusInternalServerError, fmt.Errorf("fetch conversation history error: %w", err))
+				return
+			}
+			msg := &pubsub.Message{
+				Data: bmsg,
+			}
+
+			client, err := pubsub.NewClient(c, "uchiyama-sandbox")
+			if err != nil {
+				jsonError(c, http.StatusInternalServerError, fmt.Errorf("pubsub client error: %w", err))
+				return
+			}
+
+			topic := client.Topic("slack-event")
+			if _, err := topic.Publish(c, msg).Get(c); err != nil {
+				jsonError(c, http.StatusInternalServerError, fmt.Errorf("could not publish message: %w", err))
+				return
+			}
+			logrus.Infof("success call pubsub")
 		}
 		c.JSON(http.StatusOK, nil)
 		return
