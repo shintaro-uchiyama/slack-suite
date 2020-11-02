@@ -16,6 +16,6 @@ func NewErrorResponse(err error) *errorResponse {
 }
 
 func jsonError(c *gin.Context, code int, err error) {
-	logrus.Error(err.Error())
+	logrus.Error(err)
 	c.JSON(code, NewErrorResponse(err))
 }

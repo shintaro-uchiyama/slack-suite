@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ func initRoute() {
 	eventHandler := presentation.NewEventHandler()
 	r := gin.Default()
 	r.Use(logMiddleWare())
+	r.Use(errorMiddleWare())
 	r.POST("/events", eventHandler.Create)
 	err := r.Run()
 	if err != nil {
@@ -33,6 +35,30 @@ func logMiddleWare() gin.HandlerFunc {
 		logger.Info("start")
 		c.Next()
 		logger.Info("end")
+	}
+}
+
+func errorMiddleWare() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+
+		err := c.Errors.ByType(gin.ErrorTypePublic).Last()
+		if err != nil {
+			logrus.Error(fmt.Errorf("public error: %w", err))
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"Message": err.Error(),
+			})
+			return
+		}
+
+		err = c.Errors.ByType(gin.ErrorTypePrivate).Last()
+		if err != nil {
+			logrus.Error(fmt.Errorf("private error: %w", err))
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"Message": "An unexpected error has occurred",
+			})
+			return
+		}
 	}
 }
 

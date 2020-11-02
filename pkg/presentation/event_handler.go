@@ -12,11 +12,11 @@ import (
 	"os"
 
 	"cloud.google.com/go/pubsub"
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	secretManager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	previousSecretManager "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,66 +35,68 @@ type EventCreateRequest struct {
 
 func (h EventHandler) Create(c *gin.Context) {
 	projectNumber := os.Getenv("PROJECT_NUMBER")
-	client, err := secretmanager.NewClient(c)
+	secretManagerClient, err := secretManager.NewClient(c)
 	if err != nil {
-		jsonError(c, http.StatusInternalServerError, fmt.Errorf("secretmanager initialize errror: %w", err))
+		_ = c.Error(fmt.Errorf("secret manager client initialize errror: %w", err)).SetType(gin.ErrorTypePrivate)
 		return
 	}
-	req := &secretmanagerpb.AccessSecretVersionRequest{
+
+	slackSigningSecretRequest := &previousSecretManager.AccessSecretVersionRequest{
 		Name: fmt.Sprintf("projects/%s/secrets/slack-signing-secret/versions/latest", projectNumber),
 	}
-	result, err := client.AccessSecretVersion(c, req)
+	slackSigningSecret, err := secretManagerClient.AccessSecretVersion(c, slackSigningSecretRequest)
 	if err != nil {
-		jsonError(c, http.StatusInternalServerError, err)
+		_ = c.Error(fmt.Errorf("fetch slack signing secret error: %w", err)).SetType(gin.ErrorTypePrivate)
 		return
 	}
 
-	req = &secretmanagerpb.AccessSecretVersionRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/slack-access-token/versions/latest", projectNumber),
-	}
-	result2, err := client.AccessSecretVersion(c, req)
+	verifier, err := slack.NewSecretsVerifier(c.Request.Header, string(slackSigningSecret.Payload.Data))
 	if err != nil {
-		jsonError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	verifier, err := slack.NewSecretsVerifier(c.Request.Header, string(result.Payload.Data))
-	if err != nil {
-		jsonError(c, http.StatusInternalServerError, fmt.Errorf("slack signing secret error: %w", err))
-		return
-	}
-	bodyReader := io.TeeReader(c.Request.Body, &verifier)
-	body, err := ioutil.ReadAll(bodyReader)
-	if err != nil {
-		jsonError(c, http.StatusInternalServerError, fmt.Errorf("read body error: %w", err))
+		_ = c.Error(fmt.Errorf("slack secret verifier error: %w", err)).SetType(gin.ErrorTypePrivate)
 		return
 	}
 	if err := verifier.Ensure(); err != nil {
-		jsonError(c, http.StatusInternalServerError, fmt.Errorf("ensure secret error: %w", err))
+		_ = c.Error(fmt.Errorf("ensure slack secret verifier error: %w", err)).SetType(gin.ErrorTypePrivate)
 		return
 	}
 
-	eventsAPIEvent, e := slackevents.ParseEvent(body, slackevents.OptionNoVerifyToken())
-	if e != nil {
-		jsonError(c, http.StatusInternalServerError, fmt.Errorf("initialize eventsAPIEvent error: %w", e))
+	bodyReader := io.TeeReader(c.Request.Body, &verifier)
+	body, err := ioutil.ReadAll(bodyReader)
+	if err != nil {
+		_ = c.Error(fmt.Errorf("read request body error: %w", err)).SetType(gin.ErrorTypePrivate)
 		return
 	}
-	logrus.Info(fmt.Sprintf("eventsAPIEvent %+v", eventsAPIEvent))
 
-	if eventsAPIEvent.Type == slackevents.URLVerification {
+	eventsAPIEvent, err := slackevents.ParseEvent(body, slackevents.OptionNoVerifyToken())
+	if err != nil {
+		_ = c.Error(fmt.Errorf("parse slack eventsAPI error: %w", err)).SetType(gin.ErrorTypePrivate)
+		return
+	}
+
+	switch eventsAPIEvent.Type {
+	case slackevents.URLVerification:
 		var r *slackevents.ChallengeResponse
 		err := json.Unmarshal(body, &r)
 		if err != nil {
-			jsonError(c, http.StatusInternalServerError, err)
+			_ = c.Error(fmt.Errorf("slack url verification error: %w", err)).SetType(gin.ErrorTypePrivate)
 			return
 		}
 		c.JSON(http.StatusOK, r.Challenge)
 		return
-	} else if eventsAPIEvent.Type == slackevents.CallbackEvent {
+	case slackevents.CallbackEvent:
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
-			api := slack.New(string(result2.Payload.Data))
+			slackAccessTokenRequest := &previousSecretManager.AccessSecretVersionRequest{
+				Name: fmt.Sprintf("projects/%s/secrets/slack-access-token/versions/latest", projectNumber),
+			}
+			slackAccessToken, err := secretManagerClient.AccessSecretVersion(c, slackAccessTokenRequest)
+			if err != nil {
+				_ = c.Error(fmt.Errorf("fetch slack signing secret error: %w", err)).SetType(gin.ErrorTypePrivate)
+				return
+			}
+
+			api := slack.New(string(slackAccessToken.Payload.Data))
 			conversationHistory, err := api.GetConversationHistory(&slack.GetConversationHistoryParameters{
 				ChannelID: ev.Item.Channel,
 				Inclusive: true,
@@ -102,7 +104,7 @@ func (h EventHandler) Create(c *gin.Context) {
 				Limit:     1,
 			})
 			if err != nil {
-				jsonError(c, http.StatusInternalServerError, fmt.Errorf("fetch conversation history error: %w", err))
+				_ = c.Error(fmt.Errorf("fetch conversation history error: %w", err)).SetType(gin.ErrorTypePrivate)
 				return
 			}
 			logrus.Info(fmt.Sprintf("fetch message len %+v", len(conversationHistory.Messages)))
@@ -116,7 +118,7 @@ func (h EventHandler) Create(c *gin.Context) {
 
 			bmsg, err := json.Marshal(ev)
 			if err != nil {
-				jsonError(c, http.StatusInternalServerError, fmt.Errorf("fetch conversation history error: %w", err))
+				_ = c.Error(fmt.Errorf("fetch conversation history error: %w", err)).SetType(gin.ErrorTypePrivate)
 				return
 			}
 			msg := &pubsub.Message{
@@ -125,20 +127,21 @@ func (h EventHandler) Create(c *gin.Context) {
 
 			client, err := pubsub.NewClient(c, "uchiyama-sandbox")
 			if err != nil {
-				jsonError(c, http.StatusInternalServerError, fmt.Errorf("pubsub client error: %w", err))
+				_ = c.Error(fmt.Errorf("pubsub client error: %w", err)).SetType(gin.ErrorTypePrivate)
 				return
 			}
 
 			topic := client.Topic("slack-event")
 			if _, err := topic.Publish(c, msg).Get(c); err != nil {
-				jsonError(c, http.StatusInternalServerError, fmt.Errorf("could not publish message: %w", err))
+				_ = c.Error(fmt.Errorf("could not publish message: %w", err)).SetType(gin.ErrorTypePrivate)
 				return
 			}
-			logrus.Infof("success call pubsub")
+			c.JSON(http.StatusOK, nil)
 		}
-		c.JSON(http.StatusOK, nil)
+	default:
+		_ = c.Error(
+			errors.New(fmt.Sprintf("expected slack event not found, got %s", eventsAPIEvent.Type)),
+		).SetType(gin.ErrorTypePublic)
 		return
 	}
-
-	jsonError(c, http.StatusInternalServerError, errors.New("case not found"))
 }
