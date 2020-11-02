@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/shintaro-uchiyama/pkg/presentation"
 	"github.com/sirupsen/logrus"
-	"os"
 )
 
 func initRoute() {
@@ -15,22 +16,15 @@ func initRoute() {
 	r.POST("/events", eventHandler.Create)
 	err := r.Run()
 	if err != nil {
-		logrus.Fatal(fmt.Errorf("[main.initRoute]: %w", err))
+		logrus.Fatal(fmt.Errorf("run gin engine error: %w", err))
 	}
 }
 
 func logMiddleWare() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log := logrus.New()
-		log.Level = logrus.DebugLevel
-		log.Formatter = &logrus.JSONFormatter{
-			FieldMap: logrus.FieldMap{
-				logrus.FieldKeyTime:  "timestamp",
-				logrus.FieldKeyLevel: "severity",
-				logrus.FieldKeyMsg:   "message",
-			},
-		}
-		log.Out = os.Stdout
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+		logrus.SetLevel(logrus.InfoLevel)
+		logrus.SetOutput(os.Stdout)
 
 		logger := logrus.WithFields(logrus.Fields{
 			"method": c.Request.Method,
