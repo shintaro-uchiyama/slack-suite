@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 
 	"cloud.google.com/go/pubsub"
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
@@ -33,13 +34,14 @@ type EventCreateRequest struct {
 }
 
 func (h EventHandler) Create(c *gin.Context) {
+	projectNumber := os.Getenv("PROJECT_NUMBER")
 	client, err := secretmanager.NewClient(c)
 	if err != nil {
 		jsonError(c, http.StatusInternalServerError, fmt.Errorf("secretmanager initialize errror: %w", err))
 		return
 	}
 	req := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: "projects/759555709793/secrets/slack-signing-secret/versions/latest",
+		Name: fmt.Sprintf("projects/%s/secrets/slack-signing-secret/versions/latest", projectNumber),
 	}
 	result, err := client.AccessSecretVersion(c, req)
 	if err != nil {
@@ -48,7 +50,7 @@ func (h EventHandler) Create(c *gin.Context) {
 	}
 
 	req = &secretmanagerpb.AccessSecretVersionRequest{
-		Name: "projects/759555709793/secrets/slack-access-token/versions/latest",
+		Name: fmt.Sprintf("projects/%s/secrets/slack-access-token/versions/latest", projectNumber),
 	}
 	result2, err := client.AccessSecretVersion(c, req)
 	if err != nil {
