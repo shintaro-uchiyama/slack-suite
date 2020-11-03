@@ -5,10 +5,10 @@ import (
 )
 
 type TaskApplication struct {
-	pubSub pubSubInterface
+	pubSub PubSubInterface
 }
 
-func NewTaskApplication(pubSub pubSubInterface) *TaskApplication {
+func NewTaskApplication(pubSub PubSubInterface) *TaskApplication {
 	return &TaskApplication{
 		pubSub: pubSub,
 	}

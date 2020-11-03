@@ -5,33 +5,16 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/shintaro-uchiyama/pkg/infrastructure"
-
-	"github.com/shintaro-uchiyama/pkg/application"
-
 	"github.com/gin-gonic/gin"
-	"github.com/shintaro-uchiyama/pkg/presentation"
 	"github.com/sirupsen/logrus"
 )
 
 func initRoute() {
-	secretManager, err := infrastructure.NewSecretManager()
+	eventHandler, err := InitializeEvent()
 	if err != nil {
-		logrus.Fatal(fmt.Errorf("NewSecretManager error: %w", err))
+		logrus.Fatal(fmt.Errorf("initializeError error: %w", err))
+		os.Exit(0)
 	}
-	eventSlack := infrastructure.NewEventSlack()
-	slackApplication := application.NewVerifyApplication(secretManager, eventSlack)
-
-	pubSub, err := infrastructure.NewPubSub()
-	if err != nil {
-		logrus.Fatal(fmt.Errorf("NewPubSub error: %w", err))
-	}
-	taskApplication := application.NewTaskApplication(pubSub)
-
-	eventHandler := presentation.NewEventHandler(
-		slackApplication,
-		taskApplication,
-	)
 
 	r := gin.Default()
 	r.Use(logMiddleWare())

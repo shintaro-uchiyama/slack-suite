@@ -2,8 +2,8 @@ package application
 
 import "github.com/shintaro-uchiyama/pkg/infrastructure"
 
-var _ secretManagerInterface = (*infrastructure.SecretManager)(nil)
+var _ SecretManagerInterface = (*infrastructure.SecretManager)(nil)
 
-type secretManagerInterface interface {
+type SecretManagerInterface interface {
 	GetSecret(secretName string) (string, error)
 }

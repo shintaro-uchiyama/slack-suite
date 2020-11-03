@@ -2,8 +2,8 @@ package application
 
 import "github.com/shintaro-uchiyama/pkg/infrastructure"
 
-var _ pubSubInterface = (*infrastructure.PubSub)(nil)
+var _ PubSubInterface = (*infrastructure.PubSub)(nil)
 
-type pubSubInterface interface {
+type PubSubInterface interface {
 	Publish(topicName string, message []byte) error
 }

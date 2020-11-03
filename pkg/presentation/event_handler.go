@@ -12,11 +12,11 @@ import (
 )
 
 type EventHandler struct {
-	verifyApplication verifyApplicationInterface
-	taskApplication   taskApplicationInterface
+	verifyApplication VerifyApplicationInterface
+	taskApplication   TaskApplicationInterface
 }
 
-func NewEventHandler(verifyApplication verifyApplicationInterface, taskApplication taskApplicationInterface) *EventHandler {
+func NewEventHandler(verifyApplication VerifyApplicationInterface, taskApplication TaskApplicationInterface) *EventHandler {
 	return &EventHandler{
 		verifyApplication: verifyApplication,
 		taskApplication:   taskApplication,

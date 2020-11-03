@@ -9,11 +9,11 @@ import (
 )
 
 type VerifyApplication struct {
-	secretManager secretManagerInterface
-	slackEvent    slackEventInterface
+	secretManager SecretManagerInterface
+	slackEvent    SlackEventInterface
 }
 
-func NewVerifyApplication(secretManager secretManagerInterface, slackEvent slackEventInterface) *VerifyApplication {
+func NewVerifyApplication(secretManager SecretManagerInterface, slackEvent SlackEventInterface) *VerifyApplication {
 	return &VerifyApplication{
 		secretManager: secretManager,
 		slackEvent:    slackEvent,

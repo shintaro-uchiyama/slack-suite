@@ -7,8 +7,8 @@ import (
 	"github.com/shintaro-uchiyama/pkg/infrastructure"
 )
 
-var _ slackEventInterface = (*infrastructure.EventSlack)(nil)
+var _ SlackEventInterface = (*infrastructure.EventSlack)(nil)
 
-type slackEventInterface interface {
+type SlackEventInterface interface {
 	Verify(header http.Header, body io.ReadCloser, slackSigningSecret string) ([]byte, error)
 }
