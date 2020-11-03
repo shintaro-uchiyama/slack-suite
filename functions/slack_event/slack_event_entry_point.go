@@ -11,9 +11,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	previousSecretManager "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	"github.com/slack-go/slack"
+
+	"github.com/dgrijalva/jwt-go"
 
 	"cloud.google.com/go/datastore"
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
@@ -68,7 +70,7 @@ func SlackEventEntryPoint(ctx context.Context, m PubSubMessage) error {
 		return err
 	}
 
-	zubePrivateKeySecret, err := secretManagerClient.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
+	zubePrivateKeySecret, err := secretManagerClient.AccessSecretVersion(ctx, &previousSecretManager.AccessSecretVersionRequest{
 		Name: "projects/759555709793/secrets/zube-private-key/versions/latest",
 	})
 	if err != nil {
@@ -123,10 +125,32 @@ func SlackEventEntryPoint(ctx context.Context, m PubSubMessage) error {
 		return err
 	}
 
+	slackAccessTokenRequest := &previousSecretManager.AccessSecretVersionRequest{
+		Name: "projects/759555709793/secrets/slack-access-token/versions/latest",
+	}
+	slackAccessToken, err := secretManagerClient.AccessSecretVersion(ctx, slackAccessTokenRequest)
+	if err != nil {
+		log.Fatal(fmt.Errorf("fetch slack signing secret error: %w", err))
+		return err
+	}
+
+	api := slack.New(string(slackAccessToken.Payload.Data))
+	conversationHistory, err := api.GetConversationHistory(&slack.GetConversationHistoryParameters{
+		ChannelID: reactionAddedEvent.Item.Channel,
+		Inclusive: true,
+		Latest:    reactionAddedEvent.Item.Timestamp,
+		Limit:     1,
+	})
+	if err != nil {
+		log.Fatal(fmt.Errorf("fetch conversation history error: %w", err))
+		return err
+	}
+
 	httpClient = &http.Client{}
 	body := CreateCardRequest{
 		ProjectId: 25535,
 		Title:     "test",
+		Body:      conversationHistory.Messages[0].Text,
 	}
 	requestByte, _ := json.Marshal(body)
 
