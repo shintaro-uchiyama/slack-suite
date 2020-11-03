@@ -11,14 +11,13 @@ import (
 	"os"
 	"time"
 
-	previousSecretManager "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
+	"github.com/shintaro-uchiyama/slack-suite/infrastructure"
 
 	"github.com/slack-go/slack"
 
 	"github.com/dgrijalva/jwt-go"
 
 	"cloud.google.com/go/datastore"
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/slack-go/slack/slackevents"
 )
 
@@ -64,17 +63,15 @@ func SlackEventEntryPoint(ctx context.Context, m PubSubMessage) error {
 		return err
 	}
 
-	secretManagerClient, err := secretmanager.NewClient(ctx)
+	secretManager, err := infrastructure.NewSecretManager()
 	if err != nil {
-		log.Fatal(fmt.Errorf("secretmanager client initialize error: %w", err))
+		log.Fatal(fmt.Errorf("NewSecretManager error: %w", err))
 		return err
 	}
 
-	zubePrivateKeySecret, err := secretManagerClient.AccessSecretVersion(ctx, &previousSecretManager.AccessSecretVersionRequest{
-		Name: "projects/759555709793/secrets/zube-private-key/versions/latest",
-	})
+	zubePrivateKey, err := secretManager.GetSecret("zube-private-key")
 	if err != nil {
-		log.Fatal(fmt.Errorf("get secret error: %w", err))
+		log.Fatal(fmt.Errorf("zubePrivateKey secret error: %w", err))
 		return err
 	}
 
@@ -85,7 +82,7 @@ func SlackEventEntryPoint(ctx context.Context, m PubSubMessage) error {
 		Issuer:    clientID,
 	})
 
-	signKey, err := jwt.ParseRSAPrivateKeyFromPEM(zubePrivateKeySecret.Payload.Data)
+	signKey, err := jwt.ParseRSAPrivateKeyFromPEM(zubePrivateKey)
 	if err != nil {
 		log.Fatal(fmt.Errorf("load signKey error: %w", err))
 		return err
@@ -125,16 +122,13 @@ func SlackEventEntryPoint(ctx context.Context, m PubSubMessage) error {
 		return err
 	}
 
-	slackAccessTokenRequest := &previousSecretManager.AccessSecretVersionRequest{
-		Name: "projects/759555709793/secrets/slack-access-token/versions/latest",
-	}
-	slackAccessToken, err := secretManagerClient.AccessSecretVersion(ctx, slackAccessTokenRequest)
+	slackAccessToken, err := secretManager.GetSecret("slack-access-token")
 	if err != nil {
 		log.Fatal(fmt.Errorf("fetch slack signing secret error: %w", err))
 		return err
 	}
 
-	api := slack.New(string(slackAccessToken.Payload.Data))
+	api := slack.New(string(slackAccessToken))
 	conversationHistory, err := api.GetConversationHistory(&slack.GetConversationHistoryParameters{
 		ChannelID: reactionAddedEvent.Item.Channel,
 		Inclusive: true,
