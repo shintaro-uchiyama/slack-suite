@@ -92,7 +92,11 @@ type CreateCardRequest struct {
 	WorkspaceId  int    `json:"workspace_id"`
 }
 
-func (z Zube) Create(title string, body string) error {
+type CreateCardResponse struct {
+	Number int `json:"number"`
+}
+
+func (z Zube) Create(title string, body string) (int, error) {
 	httpClient := &http.Client{}
 	createCardRequest := CreateCardRequest{
 		ProjectId: z.zubeProjectID,
@@ -102,18 +106,24 @@ func (z Zube) Create(title string, body string) error {
 	}
 	requestByte, err := json.Marshal(createCardRequest)
 	if err != nil {
-		return fmt.Errorf("createCardRequest error: %w", err)
+		return 0, fmt.Errorf("createCardRequest error: %w", err)
 	}
 
 	httpReq, err := http.NewRequest("POST", "https://zube.io/api/cards", bytes.NewReader(requestByte))
 
 	if err != nil {
-		return fmt.Errorf("zube create http request error: %w", err)
+		return 0, fmt.Errorf("zube create http request error: %w", err)
 	}
 	httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %s", z.accessToken))
 	httpReq.Header.Add("X-Client-ID", z.clientID)
 	httpReq.Header.Add("Content-Type", "application/json")
 
-	_, err = httpClient.Do(httpReq)
-	return nil
+	resp, _ := httpClient.Do(httpReq)
+	bodyByte, _ := ioutil.ReadAll(resp.Body)
+
+	var response CreateCardResponse
+	if err := json.Unmarshal(bodyByte, &response); err != nil {
+		return 0, fmt.Errorf("unmarshal zube response error: %w", err)
+	}
+	return response.Number, nil
 }

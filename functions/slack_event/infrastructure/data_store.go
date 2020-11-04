@@ -27,10 +27,10 @@ func NewDataStore() (*DataStore, error) {
 }
 
 type Task struct {
-	Title string
+	CardID int
 }
 
-func (d DataStore) Create(timeStamp string, title string) error {
+func (d DataStore) Create(timeStamp string, cardID int) error {
 	ctx := context.Background()
 	key := datastore.NameKey(d.key, timeStamp, nil)
 	_, err := d.client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
@@ -41,7 +41,7 @@ func (d DataStore) Create(timeStamp string, title string) error {
 		}
 
 		_, err = tx.Put(key, &Task{
-			Title: title,
+			CardID: cardID,
 		})
 		if err != nil {
 			return fmt.Errorf("pubt task error: %w", err)

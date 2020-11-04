@@ -28,7 +28,7 @@ func (s TaskService) IsExist(timeStamp string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("datastore get error: %w", err)
 	}
-	if task.Title == "" {
+	if task.CardID == 0 {
 		return false, nil
 	}
 	return true, nil
@@ -45,12 +45,12 @@ func (s TaskService) Create(item slackevents.Item) error {
 	if index > -1 {
 		title = message[:index]
 	}
-	err = s.zube.Create(title, body)
+	cardID, err := s.zube.Create(title, body)
 	if err != nil {
 		return fmt.Errorf("create zube card error: %w", err)
 	}
 
-	err = s.dataStore.Create(item.Timestamp, title)
+	err = s.dataStore.Create(item.Timestamp, cardID)
 	if err != nil {
 		return fmt.Errorf("create datastore task error: %w", err)
 	}

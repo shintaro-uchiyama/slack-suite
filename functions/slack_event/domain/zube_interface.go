@@ -5,5 +5,5 @@ import "github.com/shintaro-uchiyama/slack-suite/functions/slack_event/infrastru
 var _ ZubeInterface = (*infrastructure.Zube)(nil)
 
 type ZubeInterface interface {
-	Create(title string, body string) error
+	Create(title string, body string) (int, error)
 }
