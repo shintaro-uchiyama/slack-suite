@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/slack-go/slack/slackevents"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +24,8 @@ func NewEventHandler(verifyApplication VerifyApplicationInterface, taskApplicati
 		taskApplication:   taskApplication,
 	}
 }
+
+var targetReactions = map[string]int{"zube": 0}
 
 func (h EventHandler) Create(c *gin.Context) {
 	bodyByte, err := h.verifyApplication.Verify(c.Request.Header, c.Request.Body)
@@ -48,6 +52,12 @@ func (h EventHandler) Create(c *gin.Context) {
 	case slackevents.CallbackEvent:
 		switch event := slackEvent.InnerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
+			if _, ok := targetReactions[event.Reaction]; !ok {
+				logrus.Info("not target reaction")
+				c.JSON(http.StatusOK, nil)
+				return
+			}
+
 			messageByte, err := json.Marshal(event)
 			if err != nil {
 				_ = c.Error(fmt.Errorf("json marshal error: %w", err)).SetType(gin.ErrorTypePrivate)
