@@ -8,5 +8,6 @@ var _ DataStoreInterface = (*infrastructure.DataStore)(nil)
 
 type DataStoreInterface interface {
 	Create(timeStamp string, cardID int) error
+	Delete(timeStamp string) error
 	Get(timeStamp string) (*infrastructure.Task, error)
 }

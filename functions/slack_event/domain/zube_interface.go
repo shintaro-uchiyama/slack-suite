@@ -6,4 +6,5 @@ var _ ZubeInterface = (*infrastructure.Zube)(nil)
 
 type ZubeInterface interface {
 	Create(title string, body string) (int, error)
+	Delete(cardID int) error
 }

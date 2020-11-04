@@ -9,4 +9,5 @@ var _ TaskApplicationInterface = (*application.TaskApplication)(nil)
 
 type TaskApplicationInterface interface {
 	Create(reactionAddedEvent slackevents.ReactionAddedEvent) error
+	Delete(reactionAddedEvent slackevents.ReactionRemovedEvent) error
 }

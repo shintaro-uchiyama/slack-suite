@@ -68,3 +68,20 @@ func SlackEventEntryPoint(ctx context.Context, m pubsub.Message) error {
 	}
 	return nil
 }
+
+func DeleteTaskEntryPoint(ctx context.Context, m pubsub.Message) error {
+	initLog()
+
+	taskApplication, err := injectDependencies()
+	if err != nil {
+		return fmt.Errorf("inject dependencies error: %w", err)
+	}
+
+	err = taskApplication.Delete(ctx, m)
+	if err != nil {
+		err = fmt.Errorf("create task error: %w", err)
+		logrus.Errorf(err.Error())
+		return err
+	}
+	return nil
+}

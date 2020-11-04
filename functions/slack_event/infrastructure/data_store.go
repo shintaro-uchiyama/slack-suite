@@ -55,6 +55,16 @@ func (d DataStore) Create(timeStamp string, cardID int) error {
 	return nil
 }
 
+func (d DataStore) Delete(timeStamp string) error {
+	ctx := context.Background()
+	key := datastore.NameKey(d.key, timeStamp, nil)
+	err := d.client.Delete(ctx, key)
+	if err != nil {
+		return fmt.Errorf("delete datastore error: %w", err)
+	}
+	return nil
+}
+
 func (d DataStore) Get(timeStamp string) (*Task, error) {
 	ctx := context.Background()
 	key := datastore.NameKey(d.key, timeStamp, nil)

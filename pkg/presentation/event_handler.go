@@ -53,7 +53,7 @@ func (h EventHandler) Create(c *gin.Context) {
 		switch event := slackEvent.InnerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
 			if _, ok := targetReactions[event.Reaction]; !ok {
-				logrus.Info("not target reaction")
+				logrus.Info("not target add reaction")
 				c.JSON(http.StatusOK, nil)
 				return
 			}
@@ -71,7 +71,24 @@ func (h EventHandler) Create(c *gin.Context) {
 			}
 			c.JSON(http.StatusOK, nil)
 		case *slackevents.ReactionRemovedEvent:
-			panic("not implemented yet")
+			if _, ok := targetReactions[event.Reaction]; !ok {
+				logrus.Info("not target remove reaction")
+				c.JSON(http.StatusOK, nil)
+				return
+			}
+
+			messageByte, err := json.Marshal(event)
+			if err != nil {
+				_ = c.Error(fmt.Errorf("json marshal error: %w", err)).SetType(gin.ErrorTypePrivate)
+				return
+			}
+
+			err = h.taskApplication.CallDelete(messageByte)
+			if err != nil {
+				_ = c.Error(fmt.Errorf("call delete error: %w", err)).SetType(gin.ErrorTypePrivate)
+				return
+			}
+			c.JSON(http.StatusOK, nil)
 		}
 	default:
 		_ = c.Error(

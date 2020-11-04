@@ -57,3 +57,22 @@ func (s TaskService) Create(item slackevents.Item) error {
 
 	return nil
 }
+
+func (s TaskService) Delete(item slackevents.Item) error {
+	task, err := s.dataStore.Get(item.Timestamp)
+	if err != nil {
+		return fmt.Errorf("get datastore error: %w", err)
+	}
+
+	err = s.zube.Delete(task.CardID)
+	if err != nil {
+		return fmt.Errorf("create zube card error: %w", err)
+	}
+
+	err = s.dataStore.Delete(item.Timestamp)
+	if err != nil {
+		return fmt.Errorf("delete datastore task error: %w", err)
+	}
+
+	return nil
+}
