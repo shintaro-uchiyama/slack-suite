@@ -1,193 +1,70 @@
 package slack_event
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
 	"os"
-	"time"
 
-	"github.com/shintaro-uchiyama/slack-suite/infrastructure"
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/presentation"
 
-	"github.com/slack-go/slack"
-
-	"github.com/dgrijalva/jwt-go"
-
-	"cloud.google.com/go/datastore"
-	"github.com/slack-go/slack/slackevents"
+	"cloud.google.com/go/pubsub"
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/application"
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/infrastructure"
+	"github.com/sirupsen/logrus"
 )
 
-type PubSubMessage struct {
-	Data []byte `json:"data"`
+func initLog() {
+	logrus.SetFormatter(&logrus.TextFormatter{})
+	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetOutput(os.Stdout)
 }
 
-type Card struct {
-	ID int
-}
-
-type Response struct {
-	AccessToken string `json:"access_token"`
-}
-
-type CreateCardRequest struct {
-	AssigneeIds  []int  `json:"assignee_ids"`
-	Body         string `json:"body"`
-	CategoryName string `json:"category_name"`
-	EpicId       int    `json:"epic_id"`
-	GithubIssue  int    `json:"github_issue"`
-	LabelIds     []int  `json:"label_ids"`
-	Points       int    `json:"points"`
-	Priority     int    `json:"priority"`
-	ProjectId    int    `json:"project_id"`
-	SprintId     int    `json:"sprint_id"`
-	Title        string `json:"title"`
-	WorkspaceId  int    `json:"workspace_id"`
-}
-
-func SlackEventEntryPoint(ctx context.Context, m PubSubMessage) error {
-	var reactionAddedEvent slackevents.ReactionAddedEvent
-	if err := json.Unmarshal(m.Data, &reactionAddedEvent); err != nil {
-		log.Printf(fmt.Errorf("unmarshal error: %w", err).Error())
-		return err
-	}
-	log.Printf("reactionAddedEvent, %+v!", reactionAddedEvent)
-
-	var err error
-	client, err := datastore.NewClient(ctx, "uchiyama-sandbox")
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-
+func injectDependencies() (*presentation.SlackEventHandler, error) {
 	secretManager, err := infrastructure.NewSecretManager()
 	if err != nil {
-		log.Fatal(fmt.Errorf("NewSecretManager error: %w", err))
-		return err
+		return nil, fmt.Errorf("NewSecretManager: %w", err)
 	}
-
-	zubePrivateKey, err := secretManager.GetSecret("zube-private-key")
-	if err != nil {
-		log.Fatal(fmt.Errorf("zubePrivateKey secret error: %w", err))
-		return err
-	}
-
-	clientID := "83f007e2-1928-11eb-ac84-c7f4c49e7e6f"
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.StandardClaims{
-		IssuedAt:  time.Now().Unix(),
-		ExpiresAt: time.Now().Add(10 * time.Hour).Unix(),
-		Issuer:    clientID,
-	})
-
-	signKey, err := jwt.ParseRSAPrivateKeyFromPEM(zubePrivateKey)
-	if err != nil {
-		log.Fatal(fmt.Errorf("load signKey error: %w", err))
-		return err
-	}
-
-	tokenString, err := token.SignedString(signKey)
-	if err != nil {
-		log.Fatal(fmt.Errorf("get token error: %w", err))
-		return err
-	}
-
-	httpClient := &http.Client{}
-	httpReq, err := http.NewRequest("POST", "https://zube.io/api/users/tokens", nil)
-	if err != nil {
-		log.Fatal(fmt.Errorf("http req: %w", err))
-		return err
-	}
-	httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %s", tokenString))
-	httpReq.Header.Add("X-Client-ID", clientID)
-	httpReq.Header.Add("Accept", "application/json")
-
-	resp, err := httpClient.Do(httpReq)
-	if err != nil {
-		log.Fatal(fmt.Errorf("client do: %w", err))
-		return err
-	}
-
-	bodyB, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(fmt.Errorf("body byte: %w", err))
-		return err
-	}
-
-	var response Response
-	if err := json.Unmarshal(bodyB, &response); err != nil {
-		log.Fatal(fmt.Errorf("unmarshal error: %w", err))
-		return err
-	}
-
 	slackAccessToken, err := secretManager.GetSecret("slack-access-token")
 	if err != nil {
-		log.Fatal(fmt.Errorf("fetch slack signing secret error: %w", err))
-		return err
+		return nil, fmt.Errorf("get slack access token secret error: %w", err)
 	}
-
-	api := slack.New(string(slackAccessToken))
-	conversationHistory, err := api.GetConversationHistory(&slack.GetConversationHistoryParameters{
-		ChannelID: reactionAddedEvent.Item.Channel,
-		Inclusive: true,
-		Latest:    reactionAddedEvent.Item.Timestamp,
-		Limit:     1,
-	})
+	zubePrivateKey, err := secretManager.GetSecret("zube-private-key")
 	if err != nil {
-		log.Fatal(fmt.Errorf("fetch conversation history error: %w", err))
-		return err
+		return nil, fmt.Errorf("get zube private key secret error: %w", err)
 	}
 
-	httpClient = &http.Client{}
-	body := CreateCardRequest{
-		ProjectId: 25535,
-		Title:     "test",
-		Body:      conversationHistory.Messages[0].Text,
-	}
-	requestByte, _ := json.Marshal(body)
-
-	httpReq, err = http.NewRequest("POST", "https://zube.io/api/cards", bytes.NewReader(requestByte))
+	slack := infrastructure.NewSlack(string(slackAccessToken))
+	zube, err := infrastructure.NewZube(zubePrivateKey)
 	if err != nil {
-		log.Fatal(fmt.Errorf("http req: %w", err))
-		return err
+		return nil, fmt.Errorf("NewZube error: %w", err)
 	}
-	httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %s", response.AccessToken))
-	httpReq.Header.Add("X-Client-ID", "83f007e2-1928-11eb-ac84-c7f4c49e7e6f")
-	httpReq.Header.Add("Content-Type", "application/json")
 
-	resp, err = httpClient.Do(httpReq)
+	dataStore, err := infrastructure.NewDataStore()
 	if err != nil {
-		log.Fatal(fmt.Errorf("client do: %w", err))
-		return err
+		return nil, fmt.Errorf("NewDataStore error: %w", err)
 	}
 
-	bodyB, err = ioutil.ReadAll(resp.Body)
+	taskApplication := presentation.NewSlackEventHandler(
+		application.NewTaskApplication(
+			domain.NewTaskService(secretManager, slack, zube, dataStore),
+		))
+	return taskApplication, nil
+}
+
+func SlackEventEntryPoint(ctx context.Context, m pubsub.Message) error {
+	initLog()
+
+	taskApplication, err := injectDependencies()
 	if err != nil {
-		log.Fatal(fmt.Errorf("body byte: %w", err))
-		os.Exit(0)
+		return fmt.Errorf("inject dependencies error: %w", err)
 	}
-	log.Println(fmt.Sprintf("prodject list: %+v", string(bodyB)))
 
-	taskKey := datastore.NameKey("Card", reactionAddedEvent.Item.Timestamp, nil)
-	_, err = client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
-		// We first check that there is no entity stored with the given key.
-		var empty Card
-		if err := tx.Get(taskKey, &empty); err != datastore.ErrNoSuchEntity {
-			return err
-		}
-		// If there was no matching entity, store it now.
-		_, err := tx.Put(taskKey, &Card{
-			ID: 1,
-		})
-		return err
-	})
-
+	err = taskApplication.Create(ctx, m)
 	if err != nil {
-		log.Fatal(fmt.Errorf("upsert error: %w", err))
+		err = fmt.Errorf("create task error: %w", err)
+		logrus.Errorf(err.Error())
 		return err
 	}
-
 	return nil
 }

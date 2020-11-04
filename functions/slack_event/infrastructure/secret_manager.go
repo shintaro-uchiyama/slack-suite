@@ -18,7 +18,7 @@ func NewSecretManager() (*SecretManager, error) {
 	ctx := context.Background()
 	client, err := secretManager.NewClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("secret manager client error: %w", err)
+		return nil, fmt.Errorf("secret manager new client error: %w", err)
 	}
 	projectNumber := os.Getenv("PROJECT_NUMBER")
 	return &SecretManager{
