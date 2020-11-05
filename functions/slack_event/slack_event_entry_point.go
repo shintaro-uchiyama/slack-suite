@@ -23,7 +23,7 @@ func initLog() {
 func injectDependencies() (*presentation.SlackEventHandler, error) {
 	secretManager, err := infrastructure.NewSecretManager()
 	if err != nil {
-		return nil, fmt.Errorf("NewSecretManager: %w", err)
+		return nil, fmt.Errorf("NewSecretManager error: %w", err)
 	}
 	slackAccessToken, err := secretManager.GetSecret("slack-access-token")
 	if err != nil {
@@ -79,7 +79,7 @@ func DeleteTaskEntryPoint(ctx context.Context, m pubsub.Message) error {
 
 	err = taskApplication.Delete(ctx, m)
 	if err != nil {
-		err = fmt.Errorf("create task error: %w", err)
+		err = fmt.Errorf("delete task error: %w", err)
 		logrus.Errorf(err.Error())
 		return err
 	}

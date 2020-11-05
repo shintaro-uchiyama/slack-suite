@@ -2,8 +2,6 @@ package domain
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/slack-go/slack/slackevents"
 )
@@ -36,25 +34,23 @@ func (s TaskService) IsExist(timeStamp string) (bool, error) {
 }
 
 func (s TaskService) Create(item slackevents.Item) error {
-	message, err := s.slack.GetMessage(item)
+	text, err := s.slack.GetMessageText(item)
 	if err != nil {
 		return fmt.Errorf("get slack message error: %w", err)
 	}
 
-	index := strings.Index(message, "\n")
-	title, body := message, message
-	if index > -1 {
-		title = message[:index]
-	}
-	slackUrl := fmt.Sprintf("%s/%s/p%s", os.Getenv("SLACK_URL"), item.Channel, strings.Replace(item.Timestamp, ".", "", -1))
-	body = fmt.Sprintf("%s \n %s", body, slackUrl)
-	cardID, err := s.zube.Create(title, body)
+	item.Message.Text = text
+	cardID, err := s.zube.Create(item)
 	if err != nil {
 		return fmt.Errorf("create zube card error: %w", err)
 	}
 
 	err = s.dataStore.Create(item.Timestamp, cardID)
 	if err != nil {
+		deleteErr := s.zube.Delete(cardID)
+		if deleteErr != nil {
+			return fmt.Errorf("delete zube card error: %w", err)
+		}
 		return fmt.Errorf("create datastore task error: %w", err)
 	}
 
@@ -69,7 +65,7 @@ func (s TaskService) Delete(item slackevents.Item) error {
 
 	err = s.zube.Delete(task.CardID)
 	if err != nil {
-		return fmt.Errorf("create zube card error: %w", err)
+		return fmt.Errorf("delete zube card error: %w", err)
 	}
 
 	err = s.dataStore.Delete(item.Timestamp)

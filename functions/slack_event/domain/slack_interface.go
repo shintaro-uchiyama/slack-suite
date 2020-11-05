@@ -8,5 +8,5 @@ import (
 var _ SlackInterface = (*infrastructure.Slack)(nil)
 
 type SlackInterface interface {
-	GetMessage(item slackevents.Item) (string, error)
+	GetMessageText(item slackevents.Item) (string, error)
 }

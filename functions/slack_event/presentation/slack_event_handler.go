@@ -49,7 +49,7 @@ func (h SlackEventHandler) Delete(ctx context.Context, m pubsub.Message) error {
 	}
 	err := h.taskApplication.Delete(reactionRemovedEvent)
 	if err != nil {
-		return fmt.Errorf("create task error: %w", err)
+		return fmt.Errorf("delete task error: %w", err)
 	}
 	return nil
 }

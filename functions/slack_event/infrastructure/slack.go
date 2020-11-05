@@ -19,7 +19,7 @@ func NewSlack(slackAccessToken string) *Slack {
 	}
 }
 
-func (s Slack) GetMessage(item slackevents.Item) (string, error) {
+func (s Slack) GetMessageText(item slackevents.Item) (string, error) {
 	conversationHistory, err := s.client.GetConversationHistory(&slack.GetConversationHistoryParameters{
 		ChannelID: item.Channel,
 		Inclusive: true,

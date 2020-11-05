@@ -34,7 +34,6 @@ func (t TaskApplication) Create(reactionAddedEvent slackevents.ReactionAddedEven
 }
 
 func (t TaskApplication) Delete(reactionRemovedEvent slackevents.ReactionRemovedEvent) error {
-
 	isExist, err := t.taskService.IsExist(reactionRemovedEvent.Item.Timestamp)
 	if err != nil {
 		return fmt.Errorf("is exist error %s", err)
@@ -45,7 +44,7 @@ func (t TaskApplication) Delete(reactionRemovedEvent slackevents.ReactionRemoved
 
 	err = t.taskService.Delete(reactionRemovedEvent.Item)
 	if err != nil {
-		return fmt.Errorf("create task error %s", err)
+		return fmt.Errorf("delete task error %s", err)
 	}
 	return nil
 }

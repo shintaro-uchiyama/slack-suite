@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/slack-go/slack/slackevents"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -96,8 +99,14 @@ type CreateCardResponse struct {
 	ID int `json:"id"`
 }
 
-func (z Zube) Create(title string, body string) (int, error) {
-	httpClient := &http.Client{}
+func (z Zube) Create(item slackevents.Item) (int, error) {
+	title, body := item.Message.Text, item.Message.Text
+	index := strings.Index(item.Message.Text, "\n")
+	if index > -1 {
+		title = item.Message.Text[:index]
+	}
+	slackUrl := fmt.Sprintf("%s/%s/p%s", os.Getenv("SLACK_URL"), item.Channel, strings.Replace(item.Timestamp, ".", "", -1))
+	body = fmt.Sprintf("%s \n %s", body, slackUrl)
 	createCardRequest := CreateCardRequest{
 		ProjectId: z.zubeProjectID,
 		Title:     title,
@@ -118,6 +127,7 @@ func (z Zube) Create(title string, body string) (int, error) {
 	httpReq.Header.Add("X-Client-ID", z.clientID)
 	httpReq.Header.Add("Content-Type", "application/json")
 
+	httpClient := &http.Client{}
 	resp, _ := httpClient.Do(httpReq)
 	bodyByte, _ := ioutil.ReadAll(resp.Body)
 
