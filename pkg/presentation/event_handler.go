@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
@@ -28,28 +29,43 @@ func NewEventHandler(verifyApplication VerifyApplicationInterface, taskApplicati
 var targetReactions = map[string]int{"zube": 0}
 
 func (h EventHandler) Create(c *gin.Context) {
-	bodyByte, err := h.verifyApplication.Verify(c.Request.Header, c.Request.Body)
+	body, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
 		_ = c.Error(fmt.Errorf("error found in verify: %w", err)).SetType(gin.ErrorTypePublic)
 		return
 	}
 
-	slackEvent, err := h.verifyApplication.ParseEvent(bodyByte)
+	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
 	if err != nil {
-		_ = c.Error(fmt.Errorf("parse slack eventsAPI error: %w", err)).SetType(gin.ErrorTypePrivate)
+		_ = c.Error(fmt.Errorf("error found in verify: %w", err)).SetType(gin.ErrorTypePublic)
 		return
 	}
 
-	switch slackEvent.Type {
+	logrus.Info(fmt.Sprintf("event: %+v", eventsAPIEvent))
+	switch eventsAPIEvent.Type {
 	case slackevents.URLVerification:
+		logrus.Info("verify start")
 		var challengeResponse *slackevents.ChallengeResponse
-		err := json.Unmarshal(bodyByte, &challengeResponse)
+		err := json.Unmarshal(body, &challengeResponse)
 		if err != nil {
 			_ = c.Error(fmt.Errorf("slack url verification error: %w", err)).SetType(gin.ErrorTypePrivate)
 			return
 		}
 		c.JSON(http.StatusOK, challengeResponse.Challenge)
 	case slackevents.CallbackEvent:
+		logrus.Info("callback start")
+		bodyByte, err := h.verifyApplication.Verify(c.Request.Header, c.Request.Body)
+		if err != nil {
+			_ = c.Error(fmt.Errorf("error found in verify: %w", err)).SetType(gin.ErrorTypePublic)
+			return
+		}
+
+		slackEvent, err := h.verifyApplication.ParseEvent(bodyByte)
+		if err != nil {
+			_ = c.Error(fmt.Errorf("parse slack eventsAPI error: %w", err)).SetType(gin.ErrorTypePrivate)
+			return
+		}
+
 		switch event := slackEvent.InnerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
 			if _, ok := targetReactions[event.Reaction]; !ok {
@@ -92,7 +108,7 @@ func (h EventHandler) Create(c *gin.Context) {
 		}
 	default:
 		_ = c.Error(
-			errors.New(fmt.Sprintf("expected slack event not found, got %s", slackEvent.Type)),
+			errors.New(fmt.Sprintf("expected slack event not found, got %s", eventsAPIEvent.Type)),
 		).SetType(gin.ErrorTypePublic)
 		return
 	}
