@@ -2,5 +2,5 @@ runtime: go114
 
 main: ./pkg
 
-env_variables:
-  PROJECT_NUMBER: 759555709793
+includes:
+  - secret.yaml

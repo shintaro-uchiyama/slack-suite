@@ -39,7 +39,9 @@ func (s TaskService) Create(item slackevents.Item) error {
 		return fmt.Errorf("get slack message error: %w", err)
 	}
 
-	item.Message.Text = text
+	item.Message = &slackevents.ItemMessage{
+		Text: text,
+	}
 	cardID, err := s.zube.Create(item)
 	if err != nil {
 		return fmt.Errorf("create zube card error: %w", err)

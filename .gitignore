@@ -1,1 +1,4 @@
 .idea
+
+secret.yaml
+functions/slack_event/.env_production.yaml
