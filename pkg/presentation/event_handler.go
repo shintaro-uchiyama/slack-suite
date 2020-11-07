@@ -29,22 +29,16 @@ func NewEventHandler(verifyApplication VerifyApplicationInterface, taskApplicati
 var targetReactions = map[string]int{"zube": 0}
 
 func (h EventHandler) Create(c *gin.Context) {
-	bodyByte, err := h.verifyApplication.Verify(c.Request.Header, c.Request.Body)
+	slackEvent, bodyByte, err := h.verifyApplication.Verify(c.Request.Header, c.Request.Body)
 	if err != nil {
 		_ = c.Error(fmt.Errorf("error found in verify: %w", err)).SetType(gin.ErrorTypePublic)
-		return
-	}
-
-	slackEvent, err := h.verifyApplication.ParseEvent(bodyByte)
-	if err != nil {
-		_ = c.Error(fmt.Errorf("parse slack eventsAPI error: %w", err)).SetType(gin.ErrorTypePrivate)
 		return
 	}
 
 	switch slackEvent.Type {
 	case slackevents.URLVerification:
 		var challengeResponse *slackevents.ChallengeResponse
-		err := json.Unmarshal(bodyByte, &challengeResponse)
+		err = json.Unmarshal(bodyByte, &challengeResponse)
 		if err != nil {
 			_ = c.Error(fmt.Errorf("slack url verification error: %w", err)).SetType(gin.ErrorTypePrivate)
 			return
