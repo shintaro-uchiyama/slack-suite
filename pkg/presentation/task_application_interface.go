@@ -1,10 +1,13 @@
 package presentation
 
-import "github.com/shintaro-uchiyama/pkg/application"
+import (
+	"github.com/shintaro-uchiyama/pkg/application"
+	"github.com/slack-go/slack/slackevents"
+)
 
 var _ TaskApplicationInterface = (*application.TaskApplication)(nil)
 
 type TaskApplicationInterface interface {
-	CallCreate(message []byte) error
-	CallDelete(message []byte) error
+	CallCreate(event *slackevents.ReactionAddedEvent) error
+	CallDelete(event *slackevents.ReactionRemovedEvent) error
 }

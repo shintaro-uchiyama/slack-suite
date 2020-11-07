@@ -43,23 +43,17 @@ func (h EventHandler) Create(c *gin.Context) {
 			_ = c.Error(fmt.Errorf("slack url verification error: %w", err)).SetType(gin.ErrorTypePrivate)
 			return
 		}
-		logrus.Info(fmt.Sprintf("verify body: %+v", challengeResponse))
 		c.JSON(http.StatusOK, challengeResponse.Challenge)
 	case slackevents.CallbackEvent:
 		switch event := slackEvent.InnerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
 			if _, ok := targetReactions[event.Reaction]; !ok {
+				logrus.Info("not target add reaction")
 				c.JSON(http.StatusOK, nil)
 				return
 			}
 
-			messageByte, err := json.Marshal(event)
-			if err != nil {
-				_ = c.Error(fmt.Errorf("json marshal error: %w", err)).SetType(gin.ErrorTypePrivate)
-				return
-			}
-
-			err = h.taskApplication.CallCreate(messageByte)
+			err = h.taskApplication.CallCreate(event)
 			if err != nil {
 				_ = c.Error(fmt.Errorf("call create error: %w", err)).SetType(gin.ErrorTypePrivate)
 				return
@@ -77,13 +71,7 @@ func (h EventHandler) Create(c *gin.Context) {
 				return
 			}
 
-			messageByte, err := json.Marshal(event)
-			if err != nil {
-				_ = c.Error(fmt.Errorf("json marshal error: %w", err)).SetType(gin.ErrorTypePrivate)
-				return
-			}
-
-			err = h.taskApplication.CallDelete(messageByte)
+			err = h.taskApplication.CallDelete(event)
 			if err != nil {
 				_ = c.Error(fmt.Errorf("call delete error: %w", err)).SetType(gin.ErrorTypePrivate)
 				return
