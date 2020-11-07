@@ -45,25 +45,25 @@ func injectDependencies() (*presentation.SlackEventHandler, error) {
 		return nil, fmt.Errorf("NewDataStore error: %w", err)
 	}
 
-	taskApplication := presentation.NewSlackEventHandler(
+	slackEventHandler := presentation.NewSlackEventHandler(
 		application.NewTaskApplication(
 			domain.NewTaskService(secretManager, slack, zube, dataStore),
 		))
-	return taskApplication, nil
+	return slackEventHandler, nil
 }
 
 func CreateTaskEntryPoint(ctx context.Context, m pubsub.Message) error {
 	initLog()
 
-	taskApplication, err := injectDependencies()
+	slackEventHandler, err := injectDependencies()
 	if err != nil {
 		return fmt.Errorf("inject dependencies error: %w", err)
 	}
 
-	err = taskApplication.Create(ctx, m)
+	err = slackEventHandler.Create(ctx, m)
 	if err != nil {
 		err = fmt.Errorf("create task error: %w", err)
-		logrus.Errorf(err.Error())
+		logrus.Error(err)
 		return err
 	}
 	return nil
@@ -72,15 +72,15 @@ func CreateTaskEntryPoint(ctx context.Context, m pubsub.Message) error {
 func DeleteTaskEntryPoint(ctx context.Context, m pubsub.Message) error {
 	initLog()
 
-	taskApplication, err := injectDependencies()
+	slackEventHandler, err := injectDependencies()
 	if err != nil {
 		return fmt.Errorf("inject dependencies error: %w", err)
 	}
 
-	err = taskApplication.Delete(ctx, m)
+	err = slackEventHandler.Delete(ctx, m)
 	if err != nil {
 		err = fmt.Errorf("delete task error: %w", err)
-		logrus.Errorf(err.Error())
+		logrus.Error(err)
 		return err
 	}
 	return nil

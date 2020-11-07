@@ -29,7 +29,7 @@ func (h SlackEventHandler) Create(ctx context.Context, m pubsub.Message) error {
 	}
 
 	if _, ok := targetReactions[reactionAddedEvent.Reaction]; !ok {
-		return errors.New(fmt.Sprintf("%s is not target reactoin", reactionAddedEvent.Reaction))
+		return errors.New(fmt.Sprintf("%s is not target reaction", reactionAddedEvent.Reaction))
 	}
 	err := h.taskApplication.Create(reactionAddedEvent)
 	if err != nil {
