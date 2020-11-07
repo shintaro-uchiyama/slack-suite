@@ -10,5 +10,3 @@ projectID=$1
 
 gsutil cp "gs://"$projectID"-secret/slack-suite/app-engine/secret.yaml" .
 gcloud app deploy
-
-gsutil cp "gs://"$projectID"-secret/slack-suite/functions/slack_event/.env_production.yaml" functions/slack_event/
