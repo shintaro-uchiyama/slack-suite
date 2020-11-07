@@ -23,7 +23,7 @@ func (a TaskApplication) CallCreate(event *slackevents.ReactionAddedEvent) error
 		return fmt.Errorf("json marshal error: %w", err)
 	}
 
-	err = a.pubSub.Publish("slack-event", messageByte)
+	err = a.pubSub.Publish("create-task", messageByte)
 	if err != nil {
 		return fmt.Errorf("topinc publish error: %w", err)
 	}

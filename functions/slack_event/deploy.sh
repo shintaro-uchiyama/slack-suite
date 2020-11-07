@@ -10,9 +10,9 @@ projectID=$1
 
 gsutil cp "gs://"$projectID"-secret/slack-suite/functions/slack_event/.env_production.yaml" .
 
-gcloud functions deploy SlackEventEntryPoint \
+gcloud functions deploy CreateTaskEntryPoint \
   --runtime go113 \
-  --trigger-topic slack-event \
+  --trigger-topic create-task \
   --project $projectID \
   --region asia-northeast1 \
   --env-vars-file .env_production.yaml

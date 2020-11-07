@@ -52,7 +52,7 @@ func injectDependencies() (*presentation.SlackEventHandler, error) {
 	return taskApplication, nil
 }
 
-func SlackEventEntryPoint(ctx context.Context, m pubsub.Message) error {
+func CreateTaskEntryPoint(ctx context.Context, m pubsub.Message) error {
 	initLog()
 
 	taskApplication, err := injectDependencies()

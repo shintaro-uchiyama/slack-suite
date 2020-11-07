@@ -11,8 +11,9 @@ require (
 	github.com/gin-gonic/gin v1.6.3
 	github.com/google/subcommands v1.2.0 // indirect
 	github.com/google/wire v0.4.0
+	github.com/shintaro-uchiyama/slack-suite/functions/slack_event v0.0.0-20201107150305-50590134eabd // indirect
 	github.com/sirupsen/logrus v1.7.0
 	github.com/slack-go/slack v0.7.2
 	golang.org/x/tools v0.0.0-20201102212025-f46e4245211d // indirect
-	google.golang.org/genproto v0.0.0-20201026171402-d4b8fe4fd877
+	google.golang.org/genproto v0.0.0-20201030142918-24207fddd1c3
 )
