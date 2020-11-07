@@ -26,7 +26,7 @@ func (a VerifyApplication) Verify(header http.Header, body io.ReadCloser) (*slac
 		return nil, nil, fmt.Errorf("fetch slack signing secret error: %w", err)
 	}
 
-	bodyByte, err := a.slackEvent.Verify(header, body, slackSigningSecret)
+	bodyByte, err := a.slackEvent.Verify(header, body, string(slackSigningSecret))
 	if err != nil {
 		return nil, nil, fmt.Errorf("slack secret verifier error: %w", err)
 	}

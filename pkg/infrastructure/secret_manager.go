@@ -27,13 +27,13 @@ func NewSecretManager() (*SecretManager, error) {
 	}, nil
 }
 
-func (s SecretManager) GetSecret(secretName string) (string, error) {
+func (s SecretManager) GetSecret(secretName string) ([]byte, error) {
 	ctx := context.Background()
 	secret, err := s.client.AccessSecretVersion(ctx, &previousSecretManager.AccessSecretVersionRequest{
 		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/latest", s.projectNumber, secretName),
 	})
 	if err != nil {
-		return "", fmt.Errorf("access secret error: %w", err)
+		return nil, fmt.Errorf("access secret error: %w", err)
 	}
-	return string(secret.Payload.Data), nil
+	return secret.Payload.Data, nil
 }

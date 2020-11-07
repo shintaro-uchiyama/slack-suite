@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/sirupsen/logrus"
 
@@ -62,11 +61,6 @@ func (h EventHandler) Create(c *gin.Context) {
 		case *slackevents.ReactionRemovedEvent:
 			if _, ok := targetReactions[event.Reaction]; !ok {
 				logrus.Info("not target remove reaction")
-				c.JSON(http.StatusOK, nil)
-				return
-			}
-			if event.Item.Channel != os.Getenv("CHANNEL_ID") {
-				logrus.Info("not target channel")
 				c.JSON(http.StatusOK, nil)
 				return
 			}
