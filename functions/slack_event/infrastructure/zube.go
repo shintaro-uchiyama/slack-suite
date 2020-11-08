@@ -17,9 +17,8 @@ import (
 )
 
 type Zube struct {
-	accessToken   string
-	zubeProjectID int
-	clientID      string
+	accessToken string
+	clientID    string
 }
 
 type ZubeTokenResponse struct {
@@ -67,16 +66,9 @@ func NewZube(zubePrivateKey []byte) (*Zube, error) {
 		return nil, fmt.Errorf("unmarshal access token response error: %w", err)
 	}
 
-	zubeProjectIDString := os.Getenv("ZUBE_PROJECT_ID")
-	zubeProjectID, err := strconv.Atoi(zubeProjectIDString)
-	if err != nil {
-		return nil, fmt.Errorf("convert zube project id from string to int error: %w", err)
-	}
-
 	return &Zube{
-		accessToken:   response.AccessToken,
-		zubeProjectID: zubeProjectID,
-		clientID:      os.Getenv("CLIENT_ID"),
+		accessToken: response.AccessToken,
+		clientID:    os.Getenv("CLIENT_ID"),
 	}, nil
 }
 
@@ -107,8 +99,15 @@ func (z Zube) Create(item slackevents.Item) (int, error) {
 	}
 	slackUrl := fmt.Sprintf("%s/%s/p%s", os.Getenv("SLACK_URL"), item.Channel, strings.Replace(item.Timestamp, ".", "", -1))
 	body = fmt.Sprintf("%s \n %s", body, slackUrl)
+
+	zubeProjectIDString := os.Getenv("ZUBE_PROJECT_ID")
+	zubeProjectID, err := strconv.Atoi(zubeProjectIDString)
+	if err != nil {
+		return 0, fmt.Errorf("convert zube project id from string to int error: %w", err)
+	}
+
 	createCardRequest := CreateCardRequest{
-		ProjectId: z.zubeProjectID,
+		ProjectId: zubeProjectID,
 		Title:     title,
 		Body:      body,
 		LabelIds:  []int{272338},
@@ -158,4 +157,40 @@ func (z Zube) Delete(cardID int) error {
 		return fmt.Errorf("zube archive http request error: %w", err)
 	}
 	return nil
+}
+
+type Project struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type ResponseBody struct {
+	Data []Project `json:"data"`
+}
+
+func (z Zube) GetProjects() ([]Project, error) {
+	httpClient := &http.Client{}
+	httpReq, err := http.NewRequest("GET", "https://zube.io/api/projects", nil)
+
+	if err != nil {
+		return nil, fmt.Errorf("zube get projects http request error: %w", err)
+	}
+	httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %s", z.accessToken))
+	httpReq.Header.Add("X-Client-ID", z.clientID)
+	httpReq.Header.Add("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("convert zube project id from string to int error: %w", err)
+	}
+	bodyByte, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read zube get projects http body error: %w", err)
+	}
+
+	var response ResponseBody
+	if err := json.Unmarshal(bodyByte, &response); err != nil {
+		return nil, fmt.Errorf("unmarshal zube response error: %w", err)
+	}
+	return response.Data, nil
 }
