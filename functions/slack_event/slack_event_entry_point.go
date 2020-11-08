@@ -44,10 +44,15 @@ func injectDependencies() (*presentation.SlackEventHandler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("NewDataStore error: %w", err)
 	}
+	projectDataStore, err := infrastructure.NewProjectDataStore()
+	if err != nil {
+		return nil, fmt.Errorf("NewProjectDataStore error: %w", err)
+	}
 
 	slackEventHandler := presentation.NewSlackEventHandler(
 		application.NewTaskApplication(
 			domain.NewTaskService(secretManager, slack, zube, dataStore),
+			domain.NewProjectService(projectDataStore),
 		))
 	return slackEventHandler, nil
 }

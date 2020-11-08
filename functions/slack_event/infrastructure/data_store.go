@@ -27,7 +27,7 @@ func NewDataStore() (*DataStore, error) {
 }
 
 type Task struct {
-	CardID int
+	CardID int `datastore:",noindex"`
 }
 
 func (d DataStore) Create(timeStamp string, cardID int) error {
@@ -35,16 +35,15 @@ func (d DataStore) Create(timeStamp string, cardID int) error {
 	key := datastore.NameKey(d.key, timeStamp, nil)
 	_, err := d.client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
 		var task Task
-		err := tx.Get(key, &task)
-		if err != nil && !errors.Is(err, datastore.ErrNoSuchEntity) {
+		if err := tx.Get(key, &task); !errors.Is(err, datastore.ErrNoSuchEntity) {
 			return fmt.Errorf("get task from datastore error: %w", err)
 		}
 
-		_, err = tx.Put(key, &Task{
+		_, err := tx.Put(key, &Task{
 			CardID: cardID,
 		})
 		if err != nil {
-			return fmt.Errorf("pubt task error: %w", err)
+			return fmt.Errorf("put task error: %w", err)
 		}
 		return nil
 	})

@@ -8,16 +8,26 @@ import (
 )
 
 type TaskApplication struct {
-	taskService TaskServiceInterface
+	taskService    TaskServiceInterface
+	projectService ProjectServiceInterface
 }
 
-func NewTaskApplication(taskService TaskServiceInterface) *TaskApplication {
+func NewTaskApplication(taskService TaskServiceInterface, projectService ProjectServiceInterface) *TaskApplication {
 	return &TaskApplication{
-		taskService: taskService,
+		taskService:    taskService,
+		projectService: projectService,
 	}
 }
 
 func (t TaskApplication) Create(reactionAddedEvent slackevents.ReactionAddedEvent) error {
+	project, err := t.projectService.GetByChannel(reactionAddedEvent.Item.Channel)
+	if err != nil {
+		return fmt.Errorf("get project error %s", err)
+	}
+	if project == nil {
+		return fmt.Errorf("project not found %s", err)
+	}
+
 	isExist, err := t.taskService.IsExist(reactionAddedEvent.Item.Timestamp)
 	if err != nil {
 		return fmt.Errorf("is exist error %s", err)
