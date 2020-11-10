@@ -9,6 +9,7 @@ require (
 	cloud.google.com/go/pubsub v1.8.2
 	firebase.google.com/go v3.13.0+incompatible // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/google/uuid v1.1.2 // indirect
 	github.com/sirupsen/logrus v1.7.0
 	github.com/slack-go/slack v0.7.2
 	google.golang.org/genproto v0.0.0-20201030142918-24207fddd1c3

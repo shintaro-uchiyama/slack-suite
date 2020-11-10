@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
+
 	"cloud.google.com/go/datastore"
 )
+
+var _ domain.ProjectDataStoreInterface = (*ProjectDataStore)(nil)
 
 type ProjectDataStore struct {
 	client *datastore.Client
@@ -27,18 +31,18 @@ func NewProjectDataStore() (*ProjectDataStore, error) {
 }
 
 type ProjectEntity struct {
-	Project int `datastore:",noindex"`
+	ProjectID int `datastore:",noindex"`
 }
 
-func (d ProjectDataStore) GetByChannel(channel string) (*ProjectEntity, error) {
+func (d ProjectDataStore) GetByChannel(channel string) (domain.Project, error) {
 	ctx := context.Background()
 	key := datastore.NameKey(d.kind, channel, nil)
 	var project ProjectEntity
 	err := d.client.Get(ctx, key, &project)
 	if errors.Is(err, datastore.ErrNoSuchEntity) {
-		return nil, nil
+		return domain.Project{}, datastore.ErrNoSuchEntity
 	} else if err != nil {
-		return nil, fmt.Errorf("get datastore error: %w", err)
+		return domain.Project{}, fmt.Errorf("get datastore error: %w", err)
 	}
-	return &project, nil
+	return *domain.NewProject(project.ProjectID, channel), nil
 }

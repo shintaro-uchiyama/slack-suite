@@ -4,31 +4,47 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
+
 	"github.com/slack-go/slack/slackevents"
 )
 
 type TaskApplication struct {
-	taskService    TaskServiceInterface
-	projectService ProjectServiceInterface
+	taskService       TaskServiceInterface
+	projectRepository domain.ProjectDataStoreInterface
+	taskRepository    domain.DataStoreInterface
+	slack             domain.SlackInterface
+	zube              domain.ZubeInterface
 }
 
-func NewTaskApplication(taskService TaskServiceInterface, projectService ProjectServiceInterface) *TaskApplication {
+func NewTaskApplication(
+	taskService TaskServiceInterface,
+	projectRepository domain.ProjectDataStoreInterface,
+	taskRepository domain.DataStoreInterface,
+	slack domain.SlackInterface,
+	zube domain.ZubeInterface,
+) *TaskApplication {
 	return &TaskApplication{
-		taskService:    taskService,
-		projectService: projectService,
+		taskService:       taskService,
+		projectRepository: projectRepository,
+		taskRepository:    taskRepository,
+		slack:             slack,
+		zube:              zube,
 	}
 }
 
 func (t TaskApplication) Create(reactionAddedEvent slackevents.ReactionAddedEvent) error {
-	project, err := t.projectService.GetByChannel(reactionAddedEvent.Item.Channel)
+	project, err := t.projectRepository.GetByChannel(reactionAddedEvent.Item.Channel)
 	if err != nil {
-		return fmt.Errorf("get project error %s", err)
-	}
-	if project == nil {
-		return fmt.Errorf("project not found %s", err)
+		return fmt.Errorf("get project entity error %w", err)
 	}
 
-	isExist, err := t.taskService.IsExist(reactionAddedEvent.Item.Timestamp)
+	task, err := project.CreateTask(reactionAddedEvent.Item.Timestamp)
+	if err != nil {
+		return fmt.Errorf("crete task error %w", err)
+	}
+
+	isExist, err := t.taskService.IsExist(task)
 	if err != nil {
 		return fmt.Errorf("is exist error %s", err)
 	}
@@ -36,15 +52,42 @@ func (t TaskApplication) Create(reactionAddedEvent slackevents.ReactionAddedEven
 		return errors.New(fmt.Sprintf("timeStamp %s already created", reactionAddedEvent.Item.Timestamp))
 	}
 
-	err = t.taskService.Create(reactionAddedEvent.Item)
+	slackMessage, err := t.slack.GetMessage(reactionAddedEvent.Item.Channel, reactionAddedEvent.Item.Timestamp)
 	if err != nil {
-		return fmt.Errorf("create task error %s", err)
+		return fmt.Errorf("get slack message error: %w", err)
 	}
+	task.SetTitle(slackMessage.Title())
+	task.SetBody(slackMessage.Body())
+
+	cardID, err := t.zube.Create(task)
+	if err != nil {
+		return fmt.Errorf("create zube card error: %w", err)
+	}
+	task.SetCardID(cardID)
+
+	err = t.taskRepository.Create(task)
+	if err != nil {
+		deleteErr := t.zube.Delete(cardID)
+		if deleteErr != nil {
+			return fmt.Errorf("delete zube card error: %w", err)
+		}
+		return fmt.Errorf("create datastore task error: %w", err)
+	}
+
 	return nil
 }
 
 func (t TaskApplication) Delete(reactionRemovedEvent slackevents.ReactionRemovedEvent) error {
-	isExist, err := t.taskService.IsExist(reactionRemovedEvent.Item.Timestamp)
+	project, err := t.projectRepository.GetByChannel(reactionRemovedEvent.Item.Channel)
+	if err != nil {
+		return fmt.Errorf("get project entity error %w", err)
+	}
+
+	task, err := project.GetTaskByTimestamp(t.taskRepository, reactionRemovedEvent.Item.Timestamp)
+	if err != nil {
+		return fmt.Errorf("get task erro %s", err)
+	}
+	isExist, err := t.taskService.IsExist(task)
 	if err != nil {
 		return fmt.Errorf("is exist error %s", err)
 	}
@@ -52,7 +95,7 @@ func (t TaskApplication) Delete(reactionRemovedEvent slackevents.ReactionRemoved
 		return errors.New(fmt.Sprintf("timeStamp %s not exist", reactionRemovedEvent.Item.Timestamp))
 	}
 
-	err = t.taskService.Delete(reactionRemovedEvent.Item)
+	err = project.Delete(t.taskRepository, t.zube, task.CardID(), task.Timestamp())
 	if err != nil {
 		return fmt.Errorf("delete task error %s", err)
 	}

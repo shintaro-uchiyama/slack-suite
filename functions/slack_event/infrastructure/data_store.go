@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
+
 	"cloud.google.com/go/datastore"
 )
+
+var _ domain.DataStoreInterface = (*DataStore)(nil)
 
 type DataStore struct {
 	client *datastore.Client
@@ -27,12 +31,15 @@ func NewDataStore() (*DataStore, error) {
 }
 
 type Task struct {
-	CardID int `datastore:",noindex"`
+	CardID int    `datastore:",noindex"`
+	Title  string `datastore:",noindex"`
+	Body   string `datastore:","`
 }
 
-func (d DataStore) Create(timeStamp string, cardID int) error {
+func (d DataStore) Create(domainTask domain.Task) error {
 	ctx := context.Background()
-	key := datastore.NameKey(d.key, timeStamp, nil)
+	projectKey := datastore.NameKey(d.key, domainTask.Project().Channel(), nil)
+	key := datastore.NameKey(d.key, domainTask.Timestamp(), projectKey)
 	_, err := d.client.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
 		var task Task
 		if err := tx.Get(key, &task); !errors.Is(err, datastore.ErrNoSuchEntity) {
@@ -40,7 +47,9 @@ func (d DataStore) Create(timeStamp string, cardID int) error {
 		}
 
 		_, err := tx.Put(key, &Task{
-			CardID: cardID,
+			CardID: domainTask.CardID(),
+			Title:  domainTask.Title(),
+			Body:   domainTask.Body(),
 		})
 		if err != nil {
 			return fmt.Errorf("put task error: %w", err)
@@ -54,9 +63,9 @@ func (d DataStore) Create(timeStamp string, cardID int) error {
 	return nil
 }
 
-func (d DataStore) Delete(timeStamp string) error {
+func (d DataStore) Delete(timestamp string) error {
 	ctx := context.Background()
-	key := datastore.NameKey(d.key, timeStamp, nil)
+	key := datastore.NameKey(d.key, timestamp, nil)
 	err := d.client.Delete(ctx, key)
 	if err != nil {
 		return fmt.Errorf("delete datastore error: %w", err)
@@ -64,15 +73,15 @@ func (d DataStore) Delete(timeStamp string) error {
 	return nil
 }
 
-func (d DataStore) Get(timeStamp string) (*Task, error) {
+func (d DataStore) Get(timestamp string) (domain.Task, error) {
 	ctx := context.Background()
-	key := datastore.NameKey(d.key, timeStamp, nil)
+	key := datastore.NameKey(d.key, timestamp, nil)
 	var task Task
 	err := d.client.Get(ctx, key, &task)
-	if errors.Is(err, datastore.ErrNoSuchEntity) {
-		return &task, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("get datastore error: %w", err)
+	if err != nil {
+		return domain.Task{}, fmt.Errorf("get datastore error: %w", err)
 	}
-	return &task, nil
+
+	domainTask := domain.NewTask(domain.Project{}, timestamp, task.Title, task.Body, task.CardID)
+	return *domainTask, nil
 }

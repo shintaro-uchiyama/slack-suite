@@ -1,12 +1,5 @@
 package domain
 
-import (
-	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/infrastructure"
-	"github.com/slack-go/slack/slackevents"
-)
-
-var _ SlackInterface = (*infrastructure.Slack)(nil)
-
 type SlackInterface interface {
-	GetMessageText(item slackevents.Item) (string, error)
+	GetMessage(channel string, timestamp string) (SlackMessage, error)
 }

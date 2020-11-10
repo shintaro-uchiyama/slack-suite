@@ -3,11 +3,15 @@ package infrastructure
 import (
 	"errors"
 	"fmt"
-	"log"
+	"os"
+	"strings"
+
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
 
 	"github.com/slack-go/slack"
-	"github.com/slack-go/slack/slackevents"
 )
+
+var _ domain.SlackInterface = (*Slack)(nil)
 
 type Slack struct {
 	client *slack.Client
@@ -19,20 +23,41 @@ func NewSlack(slackAccessToken string) *Slack {
 	}
 }
 
-func (s Slack) GetMessageText(item slackevents.Item) (string, error) {
-	conversationHistory, err := s.client.GetConversationHistory(&slack.GetConversationHistoryParameters{
-		ChannelID: item.Channel,
-		Inclusive: true,
-		Latest:    item.Timestamp,
-		Limit:     1,
-	})
+type SlackMessage struct {
+	Title string
+	Body  string
+}
+
+func (s Slack) GetMessage(channel string, timestamp string) (domain.SlackMessage, error) {
+	conversationHistory, err := s.client.GetConversationHistory(
+		&slack.GetConversationHistoryParameters{
+			ChannelID: channel,
+			Inclusive: true,
+			Latest:    timestamp,
+			Limit:     1,
+		},
+	)
 	if err != nil {
-		log.Fatal(fmt.Errorf("fetch conversation history error: %w", err))
-		return "", err
+		return domain.SlackMessage{}, fmt.Errorf("fetch conversation history error: %w", err)
 	}
 
 	if len(conversationHistory.Messages) == 0 {
-		return "", errors.New("message not found")
+		return domain.SlackMessage{}, errors.New("message not found")
 	}
-	return conversationHistory.Messages[0].Text, nil
+
+	text := conversationHistory.Messages[0].Text
+	title, body := text, text
+	index := strings.Index(text, "\n")
+	if index > -1 {
+		title = text[:index]
+	}
+
+	linkUrl := fmt.Sprintf(
+		"%s/%s/p%s",
+		os.Getenv("SLACK_URL"),
+		channel,
+		strings.Replace(channel, ".", "", -1),
+	)
+	body = fmt.Sprintf("%s \n %s", body, linkUrl)
+	return *domain.NewSlackMessage(title, body), nil
 }

@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
+
 	secretManager "cloud.google.com/go/secretmanager/apiv1"
 	previousSecretManager "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
+
+var _ domain.SecretManagerInterface = (*SecretManager)(nil)
 
 type SecretManager struct {
 	client        *secretManager.Client

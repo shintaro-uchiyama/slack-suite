@@ -8,13 +8,14 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/slack-go/slack/slackevents"
+	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
 
 	"github.com/dgrijalva/jwt-go"
 )
+
+var _ domain.ZubeInterface = (*Zube)(nil)
 
 type Zube struct {
 	accessToken string
@@ -73,17 +74,17 @@ func NewZube(zubePrivateKey []byte) (*Zube, error) {
 }
 
 type CreateCardRequest struct {
-	AssigneeIds  []int  `json:"assignee_ids"`
+	ProjectId    int    `json:"project_id"`
+	Title        string `json:"title"`
 	Body         string `json:"body"`
+	LabelIds     []int  `json:"label_ids"`
 	CategoryName string `json:"category_name"`
 	EpicId       int    `json:"epic_id"`
 	GithubIssue  int    `json:"github_issue"`
-	LabelIds     []int  `json:"label_ids"`
+	AssigneeIds  []int  `json:"assignee_ids"`
 	Points       int    `json:"points"`
 	Priority     int    `json:"priority"`
-	ProjectId    int    `json:"project_id"`
 	SprintId     int    `json:"sprint_id"`
-	Title        string `json:"title"`
 	WorkspaceId  int    `json:"workspace_id"`
 }
 
@@ -91,28 +92,13 @@ type CreateCardResponse struct {
 	ID int `json:"id"`
 }
 
-func (z Zube) Create(item slackevents.Item) (int, error) {
-	title, body := item.Message.Text, item.Message.Text
-	index := strings.Index(item.Message.Text, "\n")
-	if index > -1 {
-		title = item.Message.Text[:index]
-	}
-	slackUrl := fmt.Sprintf("%s/%s/p%s", os.Getenv("SLACK_URL"), item.Channel, strings.Replace(item.Timestamp, ".", "", -1))
-	body = fmt.Sprintf("%s \n %s", body, slackUrl)
-
-	zubeProjectIDString := os.Getenv("ZUBE_PROJECT_ID")
-	zubeProjectID, err := strconv.Atoi(zubeProjectIDString)
-	if err != nil {
-		return 0, fmt.Errorf("convert zube project id from string to int error: %w", err)
-	}
-
-	createCardRequest := CreateCardRequest{
-		ProjectId: zubeProjectID,
-		Title:     title,
-		Body:      body,
+func (z Zube) Create(task domain.Task) (int, error) {
+	requestByte, err := json.Marshal(CreateCardRequest{
+		ProjectId: task.Project().ID(),
+		Title:     task.Title(),
+		Body:      task.Body(),
 		LabelIds:  []int{272338},
-	}
-	requestByte, err := json.Marshal(createCardRequest)
+	})
 	if err != nil {
 		return 0, fmt.Errorf("createCardRequest error: %w", err)
 	}
@@ -193,4 +179,39 @@ func (z Zube) GetProjects() ([]Project, error) {
 		return nil, fmt.Errorf("unmarshal zube response error: %w", err)
 	}
 	return response.Data, nil
+}
+
+type Label struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+type LabelsResponse struct {
+	Data []Label `json:"data"`
+}
+
+func (z Zube) GetLabels(zubeProjectID string) (interface{}, error) {
+	httpClient := &http.Client{}
+	httpReq, err := http.NewRequest("GET", fmt.Sprintf("https://zube.io/api/projects/%s/labels", zubeProjectID), nil)
+
+	if err != nil {
+		return nil, fmt.Errorf("zube get labels http request error: %w", err)
+	}
+	httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %s", z.accessToken))
+	httpReq.Header.Add("X-Client-ID", z.clientID)
+	httpReq.Header.Add("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("http request error: %w", err)
+	}
+	bodyByte, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read zube labels http body error: %w", err)
+	}
+
+	var response LabelsResponse
+	if err := json.Unmarshal(bodyByte, &response); err != nil {
+		return nil, fmt.Errorf("unmarshal zube response error: %w", err)
+	}
+	return response, nil
 }

@@ -7,5 +7,5 @@ import (
 var _ ProjectServiceInterface = (*domain.ProjectService)(nil)
 
 type ProjectServiceInterface interface {
-	GetByChannel(channel string) (*domain.Project, error)
+	GetByChannel(channel string) (domain.Project, error)
 }
