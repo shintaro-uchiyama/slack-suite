@@ -20,6 +20,7 @@ func NewSlackEventHandler(taskApplication TaskApplicationInterface) *SlackEventH
 	}
 }
 
+// TODO: set white list slack reaction to data store
 var targetReactions = map[string]int{"zube": 0}
 
 func (h SlackEventHandler) Create(ctx context.Context, m pubsub.Message) error {
