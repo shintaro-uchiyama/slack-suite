@@ -1,27 +1,21 @@
 package domain
 
 type TaskService struct {
-	secretManager SecretManagerInterface
-	slack         SlackInterface
-	zube          ZubeInterface
-	dataStore     DataStoreInterface
+	taskRepository TaskDataStoreInterface
 }
 
-func NewTaskService(secretManager SecretManagerInterface, slack SlackInterface, zube ZubeInterface, dataStore DataStoreInterface) *TaskService {
+func NewTaskService(taskRepository TaskDataStoreInterface) *TaskService {
 	return &TaskService{
-		secretManager: secretManager,
-		slack:         slack,
-		zube:          zube,
-		dataStore:     dataStore,
+		taskRepository: taskRepository,
 	}
 }
 
 func (s TaskService) IsExist(task Task) (bool, error) {
-	task, err := s.dataStore.Get(task.Project().Channel(), task.Timestamp())
+	foundTask, err := s.taskRepository.Get(task.Project().Channel(), task.Timestamp())
 	if err != nil {
 		return false, nil
 	}
-	if task.CardID() == 0 {
+	if foundTask == nil {
 		return false, nil
 	}
 	return true, nil

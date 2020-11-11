@@ -55,7 +55,7 @@ func injectDependencies() (*presentation.SlackEventHandler, error) {
 
 	slackEventHandler := presentation.NewSlackEventHandler(
 		application.NewTaskApplication(
-			domain.NewTaskService(secretManager, slack, zube, taskRepository),
+			domain.NewTaskService(taskRepository),
 			projectRepository,
 			taskRepository,
 			labelRepository,

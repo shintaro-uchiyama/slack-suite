@@ -11,7 +11,7 @@ import (
 	"cloud.google.com/go/datastore"
 )
 
-var _ domain.DataStoreInterface = (*DataStore)(nil)
+var _ domain.TaskDataStoreInterface = (*DataStore)(nil)
 
 const taskDataStoreKey = "Task"
 
@@ -74,18 +74,18 @@ func (d DataStore) Delete(channel string, timestamp string) error {
 	return nil
 }
 
-func (d DataStore) Get(channel string, timestamp string) (domain.Task, error) {
+func (d DataStore) Get(channel string, timestamp string) (*domain.Task, error) {
 	ctx := context.Background()
 	projectKey := datastore.NameKey(projectDataStoreKey, channel, nil)
 	key := datastore.NameKey(taskDataStoreKey, timestamp, projectKey)
 	var task Task
 	err := d.client.Get(ctx, key, &task)
 	if errors.Is(err, datastore.ErrNoSuchEntity) {
-		return domain.Task{}, nil
+		return nil, nil
 	} else if err != nil {
-		return domain.Task{}, fmt.Errorf("get datastore error: %w", err)
+		return nil, fmt.Errorf("get datastore error: %w", err)
 	}
 
 	domainTask := domain.NewTask(domain.Project{}, timestamp, task.Title, task.Body, task.CardID)
-	return *domainTask, nil
+	return domainTask, nil
 }

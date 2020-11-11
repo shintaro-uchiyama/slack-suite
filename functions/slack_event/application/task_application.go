@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
 
 	"github.com/slack-go/slack/slackevents"
@@ -14,7 +12,7 @@ import (
 type TaskApplication struct {
 	taskService       TaskServiceInterface
 	projectRepository domain.ProjectDataStoreInterface
-	taskRepository    domain.DataStoreInterface
+	taskRepository    domain.TaskDataStoreInterface
 	labelRepository   domain.LabelDataStoreInterface
 	slack             domain.SlackInterface
 	zube              domain.ZubeInterface
@@ -23,7 +21,7 @@ type TaskApplication struct {
 func NewTaskApplication(
 	taskService TaskServiceInterface,
 	projectRepository domain.ProjectDataStoreInterface,
-	taskRepository domain.DataStoreInterface,
+	taskRepository domain.TaskDataStoreInterface,
 	labelRepository domain.LabelDataStoreInterface,
 	slack domain.SlackInterface,
 	zube domain.ZubeInterface,
@@ -44,7 +42,7 @@ func (t TaskApplication) Create(reactionAddedEvent slackevents.ReactionAddedEven
 		return fmt.Errorf("get project entity error %w", err)
 	}
 
-	task, err := project.CreateTask(reactionAddedEvent.Item.Timestamp, reactionAddedEvent.Reaction)
+	task, err := project.CreateTask(reactionAddedEvent.Item.Timestamp)
 	if err != nil {
 		return fmt.Errorf("crete task error %w", err)
 	}
@@ -68,7 +66,6 @@ func (t TaskApplication) Create(reactionAddedEvent slackevents.ReactionAddedEven
 	if err != nil {
 		return fmt.Errorf("get label datastore error: %w", err)
 	}
-	logrus.Info(fmt.Sprintf("return label: %+v", label))
 	task.AddLabel(label.ID())
 
 	cardID, err := t.zube.Create(task)

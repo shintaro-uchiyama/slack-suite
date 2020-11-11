@@ -12,8 +12,8 @@ import (
 func initRoute() {
 	eventHandler, err := InitializeEvent()
 	if err != nil {
-		logrus.Fatal(fmt.Errorf("initializeError error: %w", err))
-		os.Exit(0)
+		logrus.Fatal(fmt.Errorf("can't inject dependencies: %w", err))
+		os.Exit(1)
 	}
 
 	r := gin.Default()

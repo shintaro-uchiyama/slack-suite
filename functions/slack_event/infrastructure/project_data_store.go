@@ -2,7 +2,6 @@ package infrastructure
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 
@@ -39,9 +38,7 @@ func (d ProjectDataStore) GetByChannel(channel string) (domain.Project, error) {
 	key := datastore.NameKey(projectDataStoreKey, channel, nil)
 	var project ProjectEntity
 	err := d.client.Get(ctx, key, &project)
-	if errors.Is(err, datastore.ErrNoSuchEntity) {
-		return domain.Project{}, datastore.ErrNoSuchEntity
-	} else if err != nil {
+	if err != nil {
 		return domain.Project{}, fmt.Errorf("get datastore error: %w", err)
 	}
 	return *domain.NewProject(project.ProjectID, channel), nil
