@@ -5,20 +5,26 @@ import (
 )
 
 type Project struct {
-	id      int
-	channel string
-	tasks   []Task
+	id          int
+	workspaceID int
+	channel     string
+	tasks       []Task
 }
 
-func NewProject(id int, channel string) *Project {
+func NewProject(id int, channel string, workspaceID int) *Project {
 	return &Project{
-		id:      id,
-		channel: channel,
+		id:          id,
+		channel:     channel,
+		workspaceID: workspaceID,
 	}
 }
 
 func (p Project) ID() int {
 	return p.id
+}
+
+func (p Project) WorkspaceID() int {
+	return p.workspaceID
 }
 
 func (p Project) Channel() string {

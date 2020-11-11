@@ -30,7 +30,8 @@ func NewProjectDataStore() (*ProjectDataStore, error) {
 }
 
 type ProjectEntity struct {
-	ProjectID int `datastore:",noindex"`
+	ProjectID   int `datastore:",noindex"`
+	WorkspaceID int `datastore:",noindex"`
 }
 
 func (d ProjectDataStore) GetByChannel(channel string) (domain.Project, error) {
@@ -41,5 +42,5 @@ func (d ProjectDataStore) GetByChannel(channel string) (domain.Project, error) {
 	if err != nil {
 		return domain.Project{}, fmt.Errorf("get datastore error: %w", err)
 	}
-	return *domain.NewProject(project.ProjectID, channel), nil
+	return *domain.NewProject(project.ProjectID, channel, project.WorkspaceID), nil
 }

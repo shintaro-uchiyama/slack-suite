@@ -10,8 +10,8 @@ data storeから参照するようにしたい
 何かreaction追加したければ一旦コードに追加
 
 ## zubeの情報取得
-### project idの取得
-`./get_zube_projects`に準じて対象のzube project id取得
+### project, workspace idの取得
+`./get_zube_projects`に準じて対象のzube project, workspace id取得
 
 ### label idの取得
 `./get_zube_labels`に準じて対象のzube label id取得
@@ -29,13 +29,21 @@ slackのチャネルIDとzubeのproject idを紐付けるEntityの作成
   - slack channel id
     - slack link urlから取得可能
 - property
-  - name
-    - ProjectID
-  - type
-    - int
-  - value
-    - zube project id
-
+  - for project id
+    - name
+      - ProjectID
+    - type
+      - int
+    - value
+      - zube project id
+  - for workspace id
+    - name
+      - WorkspaceID
+    - type
+      - int
+    - value
+      - zube workspace id
+      
 ### reaction & zube label idの登録
 slackのreaction文字とzubeのlabel idを紐付けるEntityの作成
 

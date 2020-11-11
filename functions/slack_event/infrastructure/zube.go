@@ -97,10 +97,11 @@ type CreateCardResponse struct {
 func (z Zube) Create(task domain.Task) (int, error) {
 	logrus.Info(fmt.Sprintf("labels %+v: ", task.Labels()))
 	requestByte, err := json.Marshal(CreateCardRequest{
-		ProjectId: task.Project().ID(),
-		Title:     task.Title(),
-		Body:      task.Body(),
-		LabelIds:  task.Labels(),
+		ProjectId:   task.Project().ID(),
+		WorkspaceId: task.Project().WorkspaceID(),
+		Title:       task.Title(),
+		Body:        task.Body(),
+		LabelIds:    task.Labels(),
 	})
 	if err != nil {
 		return 0, fmt.Errorf("createCardRequest error: %w", err)
@@ -148,9 +149,15 @@ func (z Zube) Delete(cardID int) error {
 	return nil
 }
 
-type Project struct {
+type Workspace struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
+}
+
+type Project struct {
+	ID         int         `json:"id"`
+	Name       string      `json:"name"`
+	Workspaces []Workspace `json:"workspaces"`
 }
 
 type ResponseBody struct {
