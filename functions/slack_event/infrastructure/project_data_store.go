@@ -13,9 +13,10 @@ import (
 
 var _ domain.ProjectDataStoreInterface = (*ProjectDataStore)(nil)
 
+const projectDataStoreKey = "Project"
+
 type ProjectDataStore struct {
 	client *datastore.Client
-	kind   string
 }
 
 func NewProjectDataStore() (*ProjectDataStore, error) {
@@ -26,7 +27,6 @@ func NewProjectDataStore() (*ProjectDataStore, error) {
 	}
 	return &ProjectDataStore{
 		client: client,
-		kind:   "Project",
 	}, nil
 }
 
@@ -36,7 +36,7 @@ type ProjectEntity struct {
 
 func (d ProjectDataStore) GetByChannel(channel string) (domain.Project, error) {
 	ctx := context.Background()
-	key := datastore.NameKey(d.kind, channel, nil)
+	key := datastore.NameKey(projectDataStoreKey, channel, nil)
 	var project ProjectEntity
 	err := d.client.Get(ctx, key, &project)
 	if errors.Is(err, datastore.ErrNoSuchEntity) {

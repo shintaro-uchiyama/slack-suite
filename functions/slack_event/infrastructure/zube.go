@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
 
 	"github.com/dgrijalva/jwt-go"
@@ -93,11 +95,12 @@ type CreateCardResponse struct {
 }
 
 func (z Zube) Create(task domain.Task) (int, error) {
+	logrus.Info(fmt.Sprintf("labels %+v: ", task.Labels()))
 	requestByte, err := json.Marshal(CreateCardRequest{
 		ProjectId: task.Project().ID(),
 		Title:     task.Title(),
 		Body:      task.Body(),
-		LabelIds:  []int{272338},
+		LabelIds:  task.Labels(),
 	})
 	if err != nil {
 		return 0, fmt.Errorf("createCardRequest error: %w", err)
@@ -185,6 +188,7 @@ type Label struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
+
 type LabelsResponse struct {
 	Data []Label `json:"data"`
 }

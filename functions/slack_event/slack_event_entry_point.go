@@ -40,19 +40,27 @@ func injectDependencies() (*presentation.SlackEventHandler, error) {
 		return nil, fmt.Errorf("NewZube error: %w", err)
 	}
 
-	dataStore, err := infrastructure.NewDataStore()
+	taskRepository, err := infrastructure.NewDataStore()
 	if err != nil {
 		return nil, fmt.Errorf("NewDataStore error: %w", err)
 	}
-	projectDataStore, err := infrastructure.NewProjectDataStore()
+	projectRepository, err := infrastructure.NewProjectDataStore()
 	if err != nil {
 		return nil, fmt.Errorf("NewProjectDataStore error: %w", err)
+	}
+	labelRepository, err := infrastructure.NewLabelDataStore()
+	if err != nil {
+		return nil, fmt.Errorf("NewLabelDataStore error: %w", err)
 	}
 
 	slackEventHandler := presentation.NewSlackEventHandler(
 		application.NewTaskApplication(
-			domain.NewTaskService(secretManager, slack, zube, dataStore),
-			domain.NewProjectService(projectDataStore),
+			domain.NewTaskService(secretManager, slack, zube, taskRepository),
+			projectRepository,
+			taskRepository,
+			labelRepository,
+			slack,
+			zube,
 		))
 	return slackEventHandler, nil
 }

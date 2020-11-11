@@ -25,17 +25,18 @@ func (p Project) Channel() string {
 	return p.channel
 }
 
-func (p Project) CreateTask(timeStamp string) (Task, error) {
+func (p Project) CreateTask(timeStamp string, reaction string) (Task, error) {
 	task := NewTask(p, timeStamp, "", "", 0)
 	p.tasks = append(p.tasks, *task)
 	return *task, nil
 }
 
 func (p *Project) GetTaskByTimestamp(taskRepository DataStoreInterface, timeStamp string) (Task, error) {
-	task, err := taskRepository.Get(timeStamp)
+	task, err := taskRepository.Get(p.channel, timeStamp)
 	if err != nil {
 		return Task{}, fmt.Errorf("get datastore error: %w", err)
 	}
+	task.SetProject(*p)
 	return task, nil
 }
 
@@ -45,7 +46,7 @@ func (p Project) Delete(taskRepository DataStoreInterface, zube ZubeInterface, c
 		return fmt.Errorf("delete zube card error: %w", err)
 	}
 
-	err = taskRepository.Delete(timestamp)
+	err = taskRepository.Delete(p.channel, timestamp)
 	if err != nil {
 		return fmt.Errorf("delete datastore task error: %w", err)
 	}

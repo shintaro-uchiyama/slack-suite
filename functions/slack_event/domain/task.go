@@ -6,6 +6,7 @@ type Task struct {
 	title     string
 	body      string
 	cardID    int
+	labels    []int
 }
 
 func NewTask(project Project, timestamp string, title string, body string, cardID int) *Task {
@@ -30,12 +31,20 @@ func (t *Task) SetTitle(title string) {
 	t.title = title
 }
 
-func (t Task) SetBody(body string) {
+func (t *Task) SetBody(body string) {
 	t.body = body
 }
 
-func (t Task) SetCardID(cardID int) {
+func (t *Task) SetCardID(cardID int) {
 	t.cardID = cardID
+}
+
+func (t *Task) SetProject(project Project) {
+	t.project = project
+}
+
+func (t *Task) AddLabel(label int) {
+	t.labels = append(t.labels, label)
 }
 
 func (t Task) Title() string {
@@ -48,4 +57,8 @@ func (t Task) Body() string {
 
 func (t Task) CardID() int {
 	return t.cardID
+}
+
+func (t Task) Labels() []int {
+	return t.labels
 }
