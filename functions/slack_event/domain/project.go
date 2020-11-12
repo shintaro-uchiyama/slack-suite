@@ -31,13 +31,22 @@ func (p Project) Channel() string {
 	return p.channel
 }
 
-func (p Project) CreateTask(timeStamp string) (Task, error) {
-	task := NewTask(p, timeStamp, "", "", 0)
+func (p *Project) CreateTask(labelRepository LabelDataStoreInterface, timeStamp string, reaction string) (Task, error) {
+	label, err := labelRepository.GetByReaction(p.channel, reaction)
+	if err != nil {
+		return Task{}, fmt.Errorf("can't get label by reaction: %w", err)
+	}
+	task := NewTask(*p, timeStamp, "", "", 0, label.ID())
 	p.tasks = append(p.tasks, *task)
 	return *task, nil
 }
 
-func (p *Project) GetTaskByTimestamp(taskRepository TaskDataStoreInterface, timeStamp string) (Task, error) {
+func (p *Project) GetTaskByTimestamp(labelRepository LabelDataStoreInterface, taskRepository TaskDataStoreInterface, timeStamp string, reaction string) (Task, error) {
+	_, err := labelRepository.GetByReaction(p.channel, reaction)
+	if err != nil {
+		return Task{}, fmt.Errorf("can't get label by reaction: %w", err)
+	}
+
 	task, err := taskRepository.Get(p.channel, timeStamp)
 	if err != nil {
 		return Task{}, fmt.Errorf("get datastore error: %w", err)
@@ -46,13 +55,13 @@ func (p *Project) GetTaskByTimestamp(taskRepository TaskDataStoreInterface, time
 	return *task, nil
 }
 
-func (p Project) Delete(taskRepository TaskDataStoreInterface, zube ZubeInterface, cardID int, timestamp string) error {
-	err := zube.Delete(cardID)
+func (p Project) DeleteTask(taskRepository TaskDataStoreInterface, zube ZubeInterface, task Task) error {
+	err := zube.Delete(task.CardID())
 	if err != nil {
 		return fmt.Errorf("delete zube card error: %w", err)
 	}
 
-	err = taskRepository.Delete(p.channel, timestamp)
+	err = taskRepository.Delete(p.channel, task.Timestamp())
 	if err != nil {
 		return fmt.Errorf("delete datastore task error: %w", err)
 	}

@@ -4,11 +4,6 @@ AppEngine->Pub/Sub->Functionsの流れで
 zubeへのカード登録、削除を実現するfunctions
 
 # 事前準備
-## 対応するreactionをソースコードに追加
-時間なくて`slack_event_handler.go`にベタ書きしてるけど  
-data storeから参照するようにしたい  
-何かreaction追加したければ一旦コードに追加
-
 ## zubeの情報取得
 ### project, workspace idの取得
 `./get_zube_projects`に準じて対象のzube project, workspace id取得
@@ -61,6 +56,7 @@ slackのreaction文字とzubeのlabel idを紐付けるEntityの作成
     - int
   - value
     - zube label id
+    - labelをつけない場合でも0とか登録してくだされ
     
   
   

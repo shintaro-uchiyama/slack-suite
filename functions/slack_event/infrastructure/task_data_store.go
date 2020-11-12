@@ -11,21 +11,21 @@ import (
 	"cloud.google.com/go/datastore"
 )
 
-var _ domain.TaskDataStoreInterface = (*DataStore)(nil)
+var _ domain.TaskDataStoreInterface = (*TaskDataStore)(nil)
 
 const taskDataStoreKey = "Task"
 
-type DataStore struct {
+type TaskDataStore struct {
 	client *datastore.Client
 }
 
-func NewDataStore() (*DataStore, error) {
+func NewTaskDataStore() (*TaskDataStore, error) {
 	ctx := context.Background()
 	client, err := datastore.NewClient(ctx, os.Getenv("PROJECT_ID"))
 	if err != nil {
 		return nil, fmt.Errorf("datastore NewClient error: %w", err)
 	}
-	return &DataStore{
+	return &TaskDataStore{
 		client: client,
 	}, nil
 }
@@ -36,7 +36,7 @@ type Task struct {
 	Body   string `datastore:""`
 }
 
-func (d DataStore) Create(domainTask domain.Task) error {
+func (d TaskDataStore) Create(domainTask domain.Task) error {
 	ctx := context.Background()
 	projectKey := datastore.NameKey(projectDataStoreKey, domainTask.Project().Channel(), nil)
 	key := datastore.NameKey(taskDataStoreKey, domainTask.Timestamp(), projectKey)
@@ -63,7 +63,7 @@ func (d DataStore) Create(domainTask domain.Task) error {
 	return nil
 }
 
-func (d DataStore) Delete(channel string, timestamp string) error {
+func (d TaskDataStore) Delete(channel string, timestamp string) error {
 	ctx := context.Background()
 	projectKey := datastore.NameKey(projectDataStoreKey, channel, nil)
 	key := datastore.NameKey(taskDataStoreKey, timestamp, projectKey)
@@ -74,7 +74,7 @@ func (d DataStore) Delete(channel string, timestamp string) error {
 	return nil
 }
 
-func (d DataStore) Get(channel string, timestamp string) (*domain.Task, error) {
+func (d TaskDataStore) Get(channel string, timestamp string) (*domain.Task, error) {
 	ctx := context.Background()
 	projectKey := datastore.NameKey(projectDataStoreKey, channel, nil)
 	key := datastore.NameKey(taskDataStoreKey, timestamp, projectKey)
@@ -86,6 +86,6 @@ func (d DataStore) Get(channel string, timestamp string) (*domain.Task, error) {
 		return nil, fmt.Errorf("get datastore error: %w", err)
 	}
 
-	domainTask := domain.NewTask(domain.Project{}, timestamp, task.Title, task.Body, task.CardID)
+	domainTask := domain.NewTask(domain.Project{}, timestamp, task.Title, task.Body, task.CardID, 0)
 	return domainTask, nil
 }

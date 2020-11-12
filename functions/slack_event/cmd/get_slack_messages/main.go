@@ -36,6 +36,9 @@ func main() {
 		log.Fatal(fmt.Errorf("inject dependencies error: %w", err))
 	}
 
-	messages, err := slack.GetMessage(flag.Arg(0), flag.Arg(1))
-	log.Println(fmt.Sprintf("messages %+v", messages))
+	message, err := slack.GetMessage(flag.Arg(0), flag.Arg(1))
+	if err != nil {
+		log.Fatal(fmt.Errorf("get message error: %w", err))
+	}
+	log.Println(fmt.Sprintf("messages %+v, %+v", message.Body(), message.Title()))
 }

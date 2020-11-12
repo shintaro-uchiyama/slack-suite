@@ -25,24 +25,25 @@ func injectDependencies() (*presentation.SlackEventHandler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("NewSecretManager error: %w", err)
 	}
+
 	slackAccessToken, err := secretManager.GetSecret("slack-access-token")
 	if err != nil {
 		return nil, fmt.Errorf("get slack access token secret error: %w", err)
 	}
+	slack := infrastructure.NewSlack(string(slackAccessToken))
+
 	zubePrivateKey, err := secretManager.GetSecret("zube-private-key")
 	if err != nil {
 		return nil, fmt.Errorf("get zube private key secret error: %w", err)
 	}
-
-	slack := infrastructure.NewSlack(string(slackAccessToken))
 	zube, err := infrastructure.NewZube(zubePrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("NewZube error: %w", err)
 	}
 
-	taskRepository, err := infrastructure.NewDataStore()
+	taskRepository, err := infrastructure.NewTaskDataStore()
 	if err != nil {
-		return nil, fmt.Errorf("NewDataStore error: %w", err)
+		return nil, fmt.Errorf("NewTaskDataStore error: %w", err)
 	}
 	projectRepository, err := infrastructure.NewProjectDataStore()
 	if err != nil {
@@ -55,7 +56,8 @@ func injectDependencies() (*presentation.SlackEventHandler, error) {
 
 	slackEventHandler := presentation.NewSlackEventHandler(
 		application.NewTaskApplication(
-			domain.NewTaskService(taskRepository),
+			domain.NewProjectService(projectRepository),
+			domain.NewTaskService(taskRepository, slack, zube),
 			projectRepository,
 			taskRepository,
 			labelRepository,

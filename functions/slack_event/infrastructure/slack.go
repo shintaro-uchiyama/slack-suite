@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
 
 	"github.com/slack-go/slack"
@@ -45,6 +47,7 @@ func (s Slack) GetMessage(channel string, timestamp string) (domain.SlackMessage
 	}
 
 	conversationReply := conversationReplies[0]
+	logrus.Info(conversationReply)
 	text := conversationReply.Text
 	title, body := text, text
 	index := strings.Index(text, "\n")

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/shintaro-uchiyama/slack-suite/functions/slack_event/domain"
 
 	"cloud.google.com/go/datastore"
@@ -42,10 +40,6 @@ func (d LabelDataStore) GetByReaction(channel string, reaction string) (domain.L
 	labelKey := datastore.NameKey(labelDataStoreKey, reaction, projectKey)
 	var label LabelEntity
 	err := d.client.Get(ctx, labelKey, &label)
-	logrus.Info("channel: ", channel)
-	logrus.Info("reaction: ", reaction)
-	logrus.Info(fmt.Sprintf("label: %+v", label))
-	logrus.Info(fmt.Sprintf("err: %+v", err))
 	if errors.Is(err, datastore.ErrNoSuchEntity) {
 		return domain.Label{}, nil
 	} else if err != nil {
