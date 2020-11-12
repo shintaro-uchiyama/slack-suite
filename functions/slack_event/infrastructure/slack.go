@@ -29,35 +29,47 @@ type SlackMessage struct {
 }
 
 func (s Slack) GetMessage(channel string, timestamp string) (domain.SlackMessage, error) {
-	conversationHistory, err := s.client.GetConversationHistory(
-		&slack.GetConversationHistoryParameters{
+	conversationReplies, _, _, err := s.client.GetConversationReplies(
+		&slack.GetConversationRepliesParameters{
 			ChannelID: channel,
 			Inclusive: true,
-			Latest:    timestamp,
-			Limit:     1,
+			Timestamp: timestamp,
 		},
 	)
 	if err != nil {
 		return domain.SlackMessage{}, fmt.Errorf("fetch conversation history error: %w", err)
 	}
 
-	if len(conversationHistory.Messages) == 0 {
+	if len(conversationReplies) == 0 {
 		return domain.SlackMessage{}, errors.New("message not found")
 	}
 
-	text := conversationHistory.Messages[0].Text
+	conversationReply := conversationReplies[0]
+	text := conversationReply.Text
 	title, body := text, text
 	index := strings.Index(text, "\n")
 	if index > -1 {
 		title = text[:index]
 	}
 
-	linkUrl := fmt.Sprintf(
-		"%s/%s/p%s",
-		os.Getenv("SLACK_URL"),
-		channel,
-		strings.Replace(channel, ".", "", -1),
-	)
+	var linkUrl string
+	if conversationReply.ThreadTimestamp != "" {
+		linkUrl = fmt.Sprintf(
+			"%s/%s/p%s?thread_ts=%s&cid=%s",
+			os.Getenv("SLACK_URL"),
+			channel,
+			strings.Replace(timestamp, ".", "", -1),
+			conversationReply.ThreadTimestamp,
+			channel,
+		)
+	} else {
+		linkUrl = fmt.Sprintf(
+			"%s/%s/p%s",
+			os.Getenv("SLACK_URL"),
+			channel,
+			strings.Replace(timestamp, ".", "", -1),
+		)
+	}
 	body = fmt.Sprintf("%s \n %s", body, linkUrl)
 	return *domain.NewSlackMessage(title, body), nil
 }

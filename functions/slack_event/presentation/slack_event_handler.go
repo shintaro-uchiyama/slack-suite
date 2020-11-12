@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
+
 	"cloud.google.com/go/pubsub"
 	"github.com/slack-go/slack/slackevents"
 )
@@ -28,6 +30,7 @@ func (h SlackEventHandler) Create(ctx context.Context, m pubsub.Message) error {
 	if err := json.Unmarshal(m.Data, &reactionAddedEvent); err != nil {
 		return fmt.Errorf("unmarshal pubsub message error: %w", err)
 	}
+	logrus.Debug(fmt.Sprintf("request add event: %+v", reactionAddedEvent))
 
 	if _, ok := targetReactions[reactionAddedEvent.Reaction]; !ok {
 		return errors.New(fmt.Sprintf("%s is not target reaction", reactionAddedEvent.Reaction))
@@ -44,6 +47,7 @@ func (h SlackEventHandler) Delete(ctx context.Context, m pubsub.Message) error {
 	if err := json.Unmarshal(m.Data, &reactionRemovedEvent); err != nil {
 		return fmt.Errorf("unmarshal pubsub message error: %w", err)
 	}
+	logrus.Debug(fmt.Sprintf("request remove event: %+v", reactionRemovedEvent))
 
 	if _, ok := targetReactions[reactionRemovedEvent.Reaction]; !ok {
 		return errors.New(fmt.Sprintf("%s is not target reactoin", reactionRemovedEvent.Reaction))
