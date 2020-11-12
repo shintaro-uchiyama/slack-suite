@@ -58,5 +58,24 @@ slackのreaction文字とzubeのlabel idを紐付けるEntityの作成
     - zube label id
     - labelをつけない場合でも0とか登録してくだされ
     
+## Functions向けの環境変数設定
+環境変数を記述したyamlファイルを生成して  
+GCSに格納->ダウンロード->Functionsにデプロイ
+
+```zsh
+$ gcloud projects list | grep <your_project_id>
+<project_id> <name> <project_number>
+
+$ cat << EOS > .env_production.yaml
+PROJECT_ID: "<your_project_id>"
+PROJECT_NUMBER: "<your_project_number>"
+CLIENT_ID: "<your_zube_client_id>"
+SLACK_URL: "https://<your_domain>.slack.com/archives"
+EOS
+
+$ gsutil cp .env_production.yaml gs://<your_project_id>-secret/slack-suite/functions/slack_event/.env_production.yaml
+
+$ zsh deploy.sh <your_project_id>
+```
   
   

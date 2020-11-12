@@ -33,7 +33,7 @@ secret.yamlの環境変数に設定
 そしてデプロイ
 
 ```zsh
-$ gcloud projects list | grep uchiyama-sandbox
+$ gcloud projects list | grep <your_project_id>
 <project_id> <name> <project_number>
 
 $ cat << EOS > secret.yaml
@@ -41,7 +41,9 @@ env_variables:
   PROJECT_NUMBER: <your_project_number>
 EOS
 
-$ gcloud app deploy
+$ gsutil cp secret.yaml gs://<your_project_id>-secret/slack-suite/app-engine/secret.yaml
+
+$ zsh deploy.sh <your_project_id>
 ```
 
 ## Slack
